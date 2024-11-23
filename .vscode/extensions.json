@@ -1,0 +1,19 @@
+{
+    "recommendations": [
+        "acassiomarques.json-to-from-camelcase-snake-case",
+        "asyncapi.asyncapi-preview",
+        "esbenp.prettier-vscode",
+        "gruntfuggly.todo-tree",
+        "hediet.vscode-drawio",
+        "josetr.cmake-language-support-vscode",
+        "magicstack.magicpython",
+        "ms-python.black-formatter",
+        "ms-python.python",
+        "ms-vscode.makefile-tools",
+        "njpwerner.autodocstring",
+        "redhat.vscode-yaml",
+        "xaver.clang-format",
+        "yzane.markdown-pdf",
+        "yzhang.markdown-all-in-one",
+    ]
+}

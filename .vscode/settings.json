@@ -1,0 +1,29 @@
+{
+    "editor.formatOnSave": true,
+    "autoDocstring.docstringFormat": "sphinx",
+    "python.analysis.typeCheckingMode": "standard",
+    "[python]": {
+        "diffEditor.ignoreTrimWhitespace": false,
+        "editor.formatOnType": true,
+        "editor.wordBasedSuggestions": "off",
+        "editor.defaultFormatter": "ms-python.black-formatter",
+        "files.trimTrailingWhitespace": false
+    },
+    "yaml.disableAdditionalProperties": false,
+    "yaml.completion": true,
+    "yaml.format.enable": true,
+    "python.analysis.extraPaths": [
+        "./common-test-framework",
+        "${workspaceFolder}/sources/poky/bitbake/lib",
+        "${workspaceFolder}/sources/poky/meta/lib"
+    ],
+    "python.autoComplete.extraPaths": [
+        "${workspaceFolder}/sources/poky/bitbake/lib",
+        "${workspaceFolder}/sources/poky/meta/lib"
+    ],
+    "[shellscript]": {
+        "files.eol": "\n",
+        "files.trimTrailingWhitespace": true
+    },
+
+}

@@ -1,0 +1,12 @@
+services:
+  cmprovision:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cmprovision
+    network_mode: host
+    cap_add:
+      - NET_ADMIN
+    volumes:
+      - ./conf:/app/conf
+      - ./scriptexecute:/tftpboot

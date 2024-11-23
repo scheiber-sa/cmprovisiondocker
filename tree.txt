@@ -1,0 +1,30 @@
+.
+├── conf
+│   └── cmprovisionserverconf.yml
+├── docker-compose.yml
+├── Dockerfile
+├── LICENSE
+├── README.md
+├── scriptexecute
+│   ├── bcm2710-rpi-cm3.dtb
+│   ├── bcm2711-rpi-400.dtb
+│   ├── bcm2711-rpi-4-b.dtb
+│   ├── bcm2711-rpi-cm4.dtb
+│   ├── bootcode.bin
+│   ├── cmdline.txt
+│   ├── cmdline.txt.ipv6ll
+│   ├── config.txt
+│   ├── fixup4.dat
+│   ├── fixup.dat
+│   ├── kernel.img
+│   ├── overlays
+│   │   ├── dwc2.dtbo
+│   │   └── spi-gpio40-45.dtbo
+│   ├── scriptexecute.img
+│   ├── start4.elf
+│   └── start.elf
+├── server
+│   └── cmprovisionServer.py
+└── tree.txt
+
+4 directories, 23 files
