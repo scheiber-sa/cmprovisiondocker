@@ -1,4 +1,4 @@
 server:
-  hostIface: "enx9cebe8627a99"
-  serverIp: "172.20.0.1/16"
-  dhcpRange: "172.20.0.2,172.20.255.255,255.255.0.0"
+  hostIface: "enx58d56e3ddcd4"
+  serverIp: "192.168.5.1/16"
+  dhcpRange: "192.168.5.2,192.168.255.255,255.255.0.0"

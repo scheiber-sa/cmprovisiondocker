@@ -10,6 +10,7 @@ RUN apt-get update && apt-get install -y \
     python3 \
     python3-pip \
     iproute2 \
+    psmisc \
     && apt-get clean
 
 # Set working directory
@@ -19,7 +20,7 @@ WORKDIR /app
 COPY ./server /app
 
 # Install Python dependencies
-RUN pip3 install pyyaml
+RUN pip3 install pyyaml uvicorn fastapi
 
 # Make the Python script executable
 RUN chmod +x /app/cmprovisionServer.py
@@ -28,4 +29,5 @@ RUN chmod +x /app/cmprovisionServer.py
 EXPOSE 67/udp 69/udp
 
 # Run the Python script
-CMD ["sh", "-c", "/app/cmprovisionServer.py; tail -f /dev/null"]
+CMD ["sh", "-c", "/app/cmprovisionServer.py"]
+# CMD ["sh", "-c", "/app/cmprovisionServer.py; tail -f /dev/null"]
