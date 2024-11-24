@@ -20,7 +20,7 @@ WORKDIR /app
 COPY ./server /app
 
 # Install Python dependencies
-RUN pip3 install pyyaml uvicorn fastapi
+RUN pip3 install pyyaml uvicorn fastapi python-multipart
 
 # Make the Python script executable
 RUN chmod +x /app/cmprovisionServer.py

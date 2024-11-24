@@ -10,3 +10,4 @@ services:
     volumes:
       - ./conf:/app/conf
       - ./scriptexecute:/tftpboot
+      - ./images:/uploads

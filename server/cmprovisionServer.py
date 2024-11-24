@@ -58,6 +58,7 @@ class CmProvisionServer:
         # Start dnsmasq
         self.dnsmasq = Dnsmasq()
         self.dnsmasq.setHostInterface(self.hostInterface)
+        self.dnsmasq.setServerIp(self.serverIp)
         self.dnsmasq.setDhcpRange(self.dhcpRange)
         self.dnsmasq.start()
 

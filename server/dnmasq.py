@@ -5,6 +5,7 @@ import threading
 class Dnsmasq:
     DNSMASQ_CONF_PATH = "/etc/dnsmasq.conf"
     hostInterface: str = ""
+    serverIp: str = ""
     dhcpRange: str = ""
     config: str = ""
     _thread: threading.Thread
@@ -18,6 +19,15 @@ class Dnsmasq:
 
     def setHostInterface(self, hostInterface: str) -> None:
         self.hostInterface = hostInterface
+
+    def setServerIp(self, serverIp: str) -> None:
+        """
+        Set the server IP address.
+
+        :param serverIp: _description_
+        :type serverIp: str
+        """
+        self.serverIp = serverIp
 
     def setDhcpRange(self, dhcpRange: str) -> None:
         self.dhcpRange = dhcpRange
@@ -60,12 +70,13 @@ no-ping
 
     def _cmdline(self) -> None:
         cmdlineTemplate = (
-            "readjumper script=http://{server_ip}/scriptexecute?serial={{serial}}&model={{model}}"
+            "readjumper script=http://{serverIP}/scriptexecute?serial={{serial}}&model={{model}}"
             "&storagesize={{storagesize}}&mac={{mac}}&inversejumper={{jumper}}&memorysize={{memorysize}}"
             "&temp={{temp}}&cid={{cid}}&csd={{csd}}&bootmode={{bootmode}}"
         )
 
-        cmdline = cmdlineTemplate.format(server_ip=self.hostInterface.split("/")[0])
+        cmdline = cmdlineTemplate.format(serverIP=self.serverIp.split("/")[0])
+        cmdline += f"\n"
 
         with open("/tftpboot/cmdline.txt", "w") as file:
             file.write(cmdline)

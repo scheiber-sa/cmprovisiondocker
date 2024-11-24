@@ -4,7 +4,7 @@ from scapy.layers.http import HTTPRequest, HTTPResponse
 from scapy.layers.inet import TCP
 
 # Load the provided packet capture file
-pcap_file = "/home/pierr0t/begin.pcapng"
+pcap_file = "/home/pierr0t/beginDockHttp.pcapng"
 
 # Initialize packet reader
 packets = PcapReader(pcap_file)
@@ -15,7 +15,7 @@ http_payloads = []
 
 try:
     for idx, packet in enumerate(packets):
-        if 17274 < idx < 17357:
+        if 25874 < idx < 25960:
             # Add packet summary for reference
             packets_summary.append(packet.summary())
 
