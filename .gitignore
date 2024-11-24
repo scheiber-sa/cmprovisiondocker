@@ -13,3 +13,4 @@ npm-debug.log
 yarn-error.log
 !images/.gitkeep
 images/*
+scriptexecute/cmdline.txt
