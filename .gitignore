@@ -16,4 +16,4 @@ images/*
 scriptexecute/cmdline.txt
 conf/projectConfig.json
 !results/.gitkeep
-results/*
+
