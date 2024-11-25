@@ -17,3 +17,4 @@ scriptexecute/cmdline.txt
 conf/projectConfig.json
 !results/.gitkeep
 results/*
+checks.json
