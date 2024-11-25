@@ -40,7 +40,10 @@ class CmProvisionServer:
         self.hostInterface = config["server"]["hostIface"]
         self.serverIp = config["server"]["serverIp"]
         self.dhcpRange = config["server"]["dhcpRange"]
-        self.cmStatusLed = config["cm"]["statusLed"]
+        try:
+            self.cmStatusLed = config["cm"]["statusLed"]
+        except:
+            self.cmStatusLed = ""
 
     def startHttpServer(self):
         """

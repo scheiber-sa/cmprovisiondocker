@@ -8,6 +8,9 @@ class ResultManager:
     results: dict
 
     def __init__(self) -> None:
+        """
+        Constructor
+        """
         self._loadResult()
 
     def _loadResult(self):
@@ -82,6 +85,7 @@ class ResultManager:
 
         :param p_serial: The serial number
         :type p_serial: str
+
         :return: The result
         :rtype: dict
         """
@@ -97,3 +101,34 @@ class ResultManager:
         except Exception as e:
             print(f"Error in getResult: {e}")
             return {"error": "Error in getResult"}
+
+    def getResultsBySerial(self, p_serial: str) -> dict:
+        """
+        Get all the results for the serial number.
+
+        :param p_serial: The serial number
+        :type p_serial: str
+
+        :return: The results
+        :rtype: dict
+        """
+        self._loadResult()
+        try:
+            if p_serial in self.results:
+                return self.results[p_serial]
+            else:
+                return {"error": "Serial number not found"}
+        except Exception as e:
+            print(f"Error in getResultsBySerial: {e}")
+            return {"error": "Error in getResultsBySerial"}
+
+    def getResults(self) -> dict:
+        """
+        Get all the results.
+
+        :return: The results
+        :rtype: dict
+        """
+        self._loadResult()
+
+        return self.results

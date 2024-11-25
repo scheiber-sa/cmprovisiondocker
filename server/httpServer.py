@@ -633,6 +633,49 @@ echo "Provisioning completed successfully!"
                     detail=f'Error getting image for project "{project_name}"',
                 )
 
+        @self.app.get("/result/getresult")
+        def get_result(serial: str = Query(...), timestamp: str = Query(...)):
+            """
+            Get the result for a serial number.
+
+            :param serial: The serial number
+            :param timestamp: The timestamp
+            """
+            result = self.resultManager.getResult(serial, timestamp)
+            if result:
+                return JSONResponse(content=result)
+            else:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"Result not found for serial '{serial}' and timestamp '{timestamp}'",
+                )
+
+        @self.app.get("/result/getresultsbyserial")
+        def get_results_by_serial(serial: str = Query(...)):
+            """
+            Get all results for a serial number.
+
+            :param serial: The serial number
+            """
+            results = self.resultManager.getResultsBySerial(serial)
+            if results:
+                return JSONResponse(content=results)
+            else:
+                raise HTTPException(
+                    status_code=404, detail=f"Results not found for serial '{serial}'"
+                )
+
+        @self.app.get("/result/getresults")
+        def get_results():
+            """
+            Get all results.
+            """
+            results = self.resultManager.getResults()
+            if results:
+                return JSONResponse(content=results)
+            else:
+                raise HTTPException(status_code=404, detail="Results not found")
+
         # WebSocket routes
         @self.app.websocket("/")
         async def websocket_endpoint(websocket: WebSocket):

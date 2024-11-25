@@ -52,6 +52,9 @@ class ProjectManager:
         :type p_status: bool
         :param p_image: The project image
         :type p_image: str
+
+        :return: The status
+        :rtype: bool
         """
         status = False
 
@@ -75,6 +78,9 @@ class ProjectManager:
 
         :param p_projectName: The project name
         :type p_projectName: str
+
+        :return: The status
+        :rtype: bool
         """
         status = False
         try:
@@ -92,6 +98,7 @@ class ProjectManager:
 
         :param p_projectName: The project name
         :type p_projectName: str
+
         :return: The project
         :rtype: dict
         """
@@ -109,7 +116,7 @@ class ProjectManager:
         Get all projects.
 
         :return: The projects
-        :rtype: dict
+        :rtype: tuple[bool, dict]
         """
         status = False
         try:
@@ -126,6 +133,9 @@ class ProjectManager:
 
         :param p_projectName: The project name
         :type p_projectName: str
+
+        :return: The status
+        :rtype: bool
         """
         status = False
         try:
@@ -145,7 +155,7 @@ class ProjectManager:
         Get the active project.
 
         :return: The active project
-        :rtype: dict
+        :rtype: tuple[bool, dict]
         """
         status = False
         try:
@@ -163,7 +173,7 @@ class ProjectManager:
         Get the active project name.
 
         :return: The active project name
-        :rtype: str
+        :rtype: tuple[bool, str]
         """
         self._loadConfig()
         status = False
@@ -183,8 +193,9 @@ class ProjectManager:
 
         :param p_projectName: The project name
         :type p_projectName: str
+
         :return: The image
-        :rtype: str
+        :rtype: tuple[bool, str]
         """
         status = False
         try:
