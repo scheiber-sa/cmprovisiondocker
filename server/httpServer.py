@@ -11,6 +11,7 @@ from datetime import datetime
 class HttpServer:
     serverIp: str
     imageName: str
+    cmStatusLed: str
 
     def __init__(
         self,
@@ -20,6 +21,7 @@ class HttpServer:
         """
         self.serverIp = ""
         self.imageName = "mb-box-prod_.wic.xz"
+        self.cmStatusLed = "NONE"
         self.app = FastAPI(title="CM Provision Server")
         self.setupRoutes()
 
@@ -52,9 +54,50 @@ set -o pipefail
 export SERIAL="{serial}"
 export SERVER="{self.serverIp}"
 export IMAGE="{self.imageName}"
+export STATUS_LED="{self.cmStatusLed}"
 export STORAGE="/dev/mmcblk0"
 export PART1="/dev/mmcblk0p1"
 export PART2="/dev/mmcblk0p2"
+export ALLDONE="0"
+
+
+
+if [ "$STATUS_LED" != "NONE" ]; then
+    # Export the STATUS_LED (makes it available in /sys/class/gpio)
+    if [ ! -d "/sys/class/gpio/gpio$STATUS_LED" ]; then
+        echo $STATUS_LED > /sys/class/gpio/export
+    fi
+
+    # Set the direction to "out"
+    echo "out" > /sys/class/gpio/gpio$STATUS_LED/direction
+
+    # Function for blinking
+    blink() {{
+        while true; do
+            # Turn STATUS_LED on (high)
+            echo "1" > /sys/class/gpio/gpio$STATUS_LED/value
+            sleep 0.1
+
+            # Turn STATUS_LED off (low)
+            echo "0" > /sys/class/gpio/gpio$STATUS_LED/value
+            sleep 0.1
+        done
+    }}
+
+    # Start the blink function in the background
+    blink &
+
+    # Save the process ID of the background task
+    BLINK_PID=$!
+
+    echo "Blinking started. PID: $BLINK_PID"
+    echo "Run 'kill $BLINK_PID' to stop blinking."
+fi
+
+
+
+
+
 
 # Make sure we have random entropy
 echo "OM7WfoL5UW24E1cO2B66wuMvZVVAn2yoiZI2bX1ydJqEhPXibBBhZuRFtJWrRKuR" >/dev/urandom
@@ -62,7 +105,7 @@ echo "OM7WfoL5UW24E1cO2B66wuMvZVVAn2yoiZI2bX1ydJqEhPXibBBhZuRFtJWrRKuR" >/dev/ur
 echo Querying and registering EEPROM version
 vcgencmd bootloader_version >/tmp/eeprom_version || true
 if [ -f /tmp/eeprom_version ]; then
-    curl --retry 10 -g -F 'eeprom_version=@/tmp/eeprom_version' "http://${{SERVER}}/scriptexecute?serial=${{SERIAL}}"
+    curl --retry 10 -g -F 'eeprom_version=@/tmp/eeprom_version' "http://${{SERVER}}/scriptexecute/eeprom-version?serial=${{SERIAL}}"
 fi
 
 echo Sending BLKDISCARD to $STORAGE
@@ -75,9 +118,18 @@ curl --retry 10 -g "http://${{SERVER}}/uploads/${{IMAGE}}" \
 RETCODE=$?
 if [ $RETCODE -eq 0 ]; then
     echo Original image written successfully
+    ALLDONE="1"
+    if [ "$STATUS_LED" != "NONE" ]; then
+        kill $BLINK_PID
+        echo 1 > /sys/class/gpio/gpio$STATUS_LED/value
+    fi
 else
     echo Writing image failed.
-    curl --retry 10 -g -F 'log=@/tmp/dd.log' "http://${{SERVER}}/scriptexecute?serial=${{SERIAL}}&retcode=$RETCODE&phase=dd"
+    if [ "$STATUS_LED" != "NONE" ]; then
+        kill $BLINK_PID
+        echo 0 > /sys/class/gpio/gpio$STATUS_LED/value
+    fi
+    curl --retry 10 -g -F 'log=@/tmp/dd.log' "http://${{SERVER}}/scriptexecute/error?serial=${{SERIAL}}&retcode=$RETCODE&phase=dd"
     exit 1
 fi
 
@@ -85,34 +137,58 @@ partprobe $STORAGE
 sleep 0.1
 
 TEMP=vcgencmd measure_temp
-curl --retry 10 -g "http://${{SERVER}}/scriptexecute/alldone?serial=${{SERIAL}}&alldone=1&temp=$${{TEMP:5}}&verify="
+curl --retry 10 -g "http://${{SERVER}}/scriptexecute/alldone?serial=${{SERIAL}}&alldone=${{ALLDONE}}&temp=${{TEMP}}&verify="
 
-echo ""
-echo "====="
+
 echo "Provisioning completed successfully!"
 
-sleep 0.1
-if [ -f /sys/kernel/config/usb_gadget/g1/UDC ]; then
-    echo "" > /sys/kernel/config/usb_gadget/g1/UDC
-fi
-
-if [ -e /sys/class/leds/led1 ]; then
-    while true; do
-        echo 255 > /sys/class/leds/led0/brightness
-        echo 0 > /sys/class/leds/led1/brightness
-        sleep 0.5
-        echo 0 > /sys/class/leds/led0/brightness
-        echo 255 > /sys/class/leds/led1/brightness
-        sleep 0.5
-    done
-fi
-if [ -e /sys/class/leds/led0 ]; then
-    echo 255 > /sys/class/leds/led0/brightness
-fi
 """
             return PlainTextResponse(content=script, media_type="text/plain")
 
-        @self.app.post("/scriptexecute")
+        @self.app.post("/scriptexecute/eeprom-version")
+        async def upload_eeprom_version(
+            serial: str = Query(..., description="Device serial number"),
+            eeprom_version: UploadFile = File(..., description="EEPROM version file"),
+        ):
+            """
+            Handle the upload of the EEPROM version file.
+
+            :param serial: The device serial number
+            :param eeprom_version: The uploaded EEPROM version file
+            """
+            # Ensure the directory for logs exists
+            log_dir = "/logs/eeprom_versions"
+            os.makedirs(log_dir, exist_ok=True)
+
+            # Save the uploaded EEPROM version file
+            file_path = os.path.join(log_dir, f"{serial}_eeprom_version.txt")
+            try:
+                file_content = await eeprom_version.read()
+
+                # Decode the file content to text
+                decoded_content = file_content.decode("utf-8")
+
+                # Save the content to a file
+                with open(file_path, "w") as f:
+                    f.write(decoded_content)
+
+            except UnicodeDecodeError:
+                raise HTTPException(
+                    status_code=400,
+                    detail="The file content could not be decoded as UTF-8 text.",
+                )
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=f"Error saving file: {e}")
+
+            return JSONResponse(
+                content={
+                    "message": "EEPROM version file uploaded successfully",
+                    "serial": serial,
+                    "file_path": file_path,
+                }
+            )
+
+        @self.app.post("/scriptexecute/error")
         async def upload_log(
             log: UploadFile = File(...),
             serial: str = Query(...),
@@ -152,7 +228,7 @@ fi
         async def handle_all_done(
             serial: str,
             alldone: int,
-            temp: float,
+            temp: str,
             verify: str = "",
         ):
             """
@@ -304,6 +380,16 @@ fi
         :type p_ip: str
         """
         self.serverIp = p_ip
+
+    def setCmStatusLed(self, p_led: str) -> None:
+        """
+        Set the CM status LED.
+
+        :param p_led: The CM status LED
+        :type p_led: str
+        """
+        if p_led != "":
+            self.cmStatusLed = p_led
 
 
 # Create an instance of the HttpServer class for use

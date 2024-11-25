@@ -26,6 +26,7 @@ class CmProvisionServer:
         self.hostInterface = ""
         self.serverIp = ""
         self.dhcpRange = ""
+        self.cmStatusLed: str = ""
         self.httpServer: HttpServer = HttpServer()
         self._loadConfig()
 
@@ -39,12 +40,14 @@ class CmProvisionServer:
         self.hostInterface = config["server"]["hostIface"]
         self.serverIp = config["server"]["serverIp"]
         self.dhcpRange = config["server"]["dhcpRange"]
+        self.cmStatusLed = config["cm"]["statusLed"]
 
     def startHttpServer(self):
         """
         Starts the FastAPI HTTP server in a separate process.
         """
         self.httpServer.setServerIp(self.serverIp.split("/")[0])
+        self.httpServer.setCmStatusLed(self.cmStatusLed)
         uvicorn.run(self.httpServer.app, host="0.0.0.0", port=80, log_level="info")
 
     def run(self):
