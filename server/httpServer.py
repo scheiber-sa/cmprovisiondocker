@@ -1,18 +1,24 @@
 #!/usr/bin/env python3
 
 from fastapi import FastAPI, UploadFile, Form, HTTPException, Query, File
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import PlainTextResponse
 from starlette.responses import FileResponse, JSONResponse
 import hashlib
 import os
+import asyncio
+from collections import defaultdict
 from datetime import datetime
 from projectManager import ProjectManager
+from resultManager import ResultManager
+import json
 
 
 class HttpServer:
     serverIp: str
     imageName: str
     cmStatusLed: str
+    activeWebsockets: list
 
     def __init__(
         self,
@@ -24,10 +30,11 @@ class HttpServer:
         self.cmStatusLed = "NONE"
         self.app = FastAPI(title="CM Provision Server")
         self.projectManager = ProjectManager()
+        self.resultManager = ResultManager()
         self.imageName = ""
         self._getImageActiveName()
+        self.activeWebsockets = []
 
-        # self.imageName = self.projectManager.getActiveProjectName()
         self.setupRoutes()
 
     def _getImageActiveName(self):
@@ -41,11 +48,33 @@ class HttpServer:
             if status:
                 self.imageName = imageName
 
+    async def _publishToWebsockets(self, data: dict):
+        """
+        Publish data to all connected WebSocket clients.
+
+        :param data: The data to send
+        :type data: dict
+        """
+
+        async def send_to_websocket(websocket):
+            try:
+                await websocket.send_json(data)  # Await the coroutine
+            except Exception as e:
+                print(f"Error sending data to WebSocket client: {e}")
+                self.activeWebsockets.remove(websocket)
+
+        # Create a list of coroutines for all active websockets
+        tasks = [send_to_websocket(ws) for ws in self.activeWebsockets]
+
+        # Run all tasks concurrently
+        await asyncio.gather(*tasks)  # Await the gathered tasks directly
+
     def setupRoutes(self):
         """
         Define the routes for the FastAPI application.
         """
 
+        # Http routes
         @self.app.get("/scriptexecute")
         async def handle_scriptexecute(
             serial: str,
@@ -62,7 +91,47 @@ class HttpServer:
             """
             Handles GET requests from the Raspberry Pi.
             """
+            # Get the active image name
             self._getImageActiveName()
+
+            # Create a provision info dictionary
+            startTime = datetime.now()
+            startTimeStr = str(startTime.strftime("%Y%m%d_%H:%M:%S"))
+            _, activeProjectName = self.projectManager.getActiveProjectName()
+            provisionInfo = {}
+            provisionInfo[startTimeStr] = {
+                "cmInfo": {
+                    "model": model,
+                    "storagesize": storagesize,
+                    "mac": mac,
+                    "inversejumper": inversejumper,
+                    "memorysize": memorysize,
+                    "temp": temp,
+                    "cid": cid,
+                    "csd": csd,
+                    "bootmode": bootmode,
+                    "eeprom": "",
+                },
+                "cmProvisionInfo": {
+                    "projectName": activeProjectName,
+                    "image": self.imageName,
+                    "starTime": str(startTime),
+                    "endTime": "",
+                    "duration": "",
+                    "state": "started",
+                    "result": False,
+                    "errorLog": "",
+                },
+            }
+
+            # Live update the WebSocket clients
+            wsDict = defaultdict(dict)
+            wsDict[serial] = provisionInfo
+            await self._publishToWebsockets(wsDict)
+
+            # store
+            self.resultManager.addResult(serial, provisionInfo)
+
             # Generate a response script based on the request parameters
             script = f"""#!/bin/sh
 #!/bin/sh
@@ -72,6 +141,7 @@ export SERIAL="{serial}"
 export SERVER="{self.serverIp}"
 export IMAGE="{self.imageName}"
 export STATUS_LED="{self.cmStatusLed}"
+export STARTTIME="{startTimeStr}"
 export STORAGE="/dev/mmcblk0"
 export PART1="/dev/mmcblk0p1"
 export PART2="/dev/mmcblk0p2"
@@ -111,18 +181,13 @@ if [ "$STATUS_LED" != "NONE" ]; then
     echo "Run 'kill $BLINK_PID' to stop blinking."
 fi
 
-
-
-
-
-
 # Make sure we have random entropy
 echo "OM7WfoL5UW24E1cO2B66wuMvZVVAn2yoiZI2bX1ydJqEhPXibBBhZuRFtJWrRKuR" >/dev/urandom
 
 echo Querying and registering EEPROM version
 vcgencmd bootloader_version >/tmp/eeprom_version || true
 if [ -f /tmp/eeprom_version ]; then
-    curl --retry 10 -g -F 'eeprom_version=@/tmp/eeprom_version' "http://${{SERVER}}/scriptexecute/eeprom-version?serial=${{SERIAL}}"
+    curl --retry 10 -g -F 'eeprom_version=@/tmp/eeprom_version' "http://${{SERVER}}/scriptexecute/eeprom-version?serial=${{SERIAL}}&start=${{STARTTIME}}"
 fi
 
 echo Sending BLKDISCARD to $STORAGE
@@ -146,7 +211,7 @@ else
         kill $BLINK_PID
         echo 0 > /sys/class/gpio/gpio$STATUS_LED/value
     fi
-    curl --retry 10 -g -F 'log=@/tmp/dd.log' "http://${{SERVER}}/scriptexecute/error?serial=${{SERIAL}}&retcode=$RETCODE&phase=dd"
+    curl --retry 10 -g -F 'log=@/tmp/dd.log' "http://${{SERVER}}/scriptexecute/error?serial=${{SERIAL}}&retcode=$RETCODE&phase=dd&start=${{STARTTIME}}"
     exit 1
 fi
 
@@ -154,7 +219,7 @@ partprobe $STORAGE
 sleep 0.1
 
 TEMP=vcgencmd measure_temp
-curl --retry 10 -g "http://${{SERVER}}/scriptexecute/alldone?serial=${{SERIAL}}&alldone=${{ALLDONE}}&temp=${{TEMP}}&verify="
+curl --retry 10 -g "http://${{SERVER}}/scriptexecute/alldone?serial=${{SERIAL}}&alldone=${{ALLDONE}}&temp=${{TEMP}}&verify=&start=${{STARTTIME}}"
 
 
 echo "Provisioning completed successfully!"
@@ -166,6 +231,7 @@ echo "Provisioning completed successfully!"
         async def upload_eeprom_version(
             serial: str = Query(..., description="Device serial number"),
             eeprom_version: UploadFile = File(..., description="EEPROM version file"),
+            start: str = Query(..., description="Start time"),
         ):
             """
             Handle the upload of the EEPROM version file.
@@ -189,6 +255,18 @@ echo "Provisioning completed successfully!"
                 with open(file_path, "w") as f:
                     f.write(decoded_content)
 
+                currentProvision = self.resultManager.getResult(serial, start)
+                if currentProvision:
+                    currentProvision["cmInfo"]["eeprom"] = str(decoded_content).replace(
+                        "\n", ","
+                    )
+                    self.resultManager.modifyResult(serial, start, currentProvision)
+
+                    # Live update the WebSocket clients
+                    wsDict = defaultdict(dict)
+                    wsDict[serial][start] = currentProvision
+                    await self._publishToWebsockets(wsDict)
+
             except UnicodeDecodeError:
                 raise HTTPException(
                     status_code=400,
@@ -211,6 +289,7 @@ echo "Provisioning completed successfully!"
             serial: str = Query(...),
             retcode: int = Query(...),
             phase: str = Query(...),
+            start: str = Query(...),
         ):
             """
             Handle log file uploads and related query parameters.
@@ -230,6 +309,31 @@ echo "Provisioning completed successfully!"
                 file_content = await log.read()
                 f.write(file_content)
 
+                currentTime = datetime.now()
+                currentProvision = self.resultManager.getResult(serial, start)
+                if currentProvision:
+                    # Parse `starTime` from ISO 8601-like string to datetime
+                    start_time_str = currentProvision["cmProvisionInfo"]["starTime"]
+                    start_time = datetime.fromisoformat(start_time_str)
+
+                    # Calculate duration
+                    currentProvision["cmProvisionInfo"][
+                        "endTime"
+                    ] = currentTime.isoformat()
+                    currentProvision["cmProvisionInfo"]["duration"] = str(
+                        currentTime - start_time
+                    )
+                    currentProvision["cmProvisionInfo"]["state"] = "completed"
+                    currentProvision["cmProvisionInfo"]["errorLog"] = str(file_content)
+
+                    # Save the modified result
+                    self.resultManager.modifyResult(serial, start, currentProvision)
+
+                    # Live update the WebSocket clients
+                    wsDict = defaultdict(dict)
+                    wsDict[serial][start] = currentProvision
+                    await self._publishToWebsockets(wsDict)
+
             # Return a success response
             return JSONResponse(
                 content={
@@ -247,21 +351,32 @@ echo "Provisioning completed successfully!"
             alldone: int,
             temp: str,
             verify: str = "",
+            start: str = "",
         ):
             """
             Handle the 'all done' request at a separate route.
             """
-            log_message = (
-                f"Serial: {serial}, All Done: {alldone}, Temp: {temp}, Verify: {verify}"
-            )
-            print(log_message)
+            currentTime = datetime.now()
+            currentProvision = self.resultManager.getResult(serial, start)
+            if currentProvision:
+                # Parse `starTime` from ISO 8601-like string to datetime
+                start_time_str = currentProvision["cmProvisionInfo"]["starTime"]
+                start_time = datetime.fromisoformat(start_time_str)
 
-            # Save to a log file (optional)
-            log_dir = "/logs"
-            os.makedirs(log_dir, exist_ok=True)
-            log_path = os.path.join(log_dir, f"{serial}_all_done.log")
-            with open(log_path, "a") as log_file:
-                log_file.write(log_message + "\n")
+                # Calculate duration
+                currentProvision["cmProvisionInfo"]["endTime"] = currentTime.isoformat()
+                currentProvision["cmProvisionInfo"]["duration"] = str(
+                    currentTime - start_time
+                )
+                currentProvision["cmProvisionInfo"]["state"] = "completed"
+                currentProvision["cmProvisionInfo"]["result"] = True
+                # Save the modified result
+                self.resultManager.modifyResult(serial, start, currentProvision)
+
+                # Live update the WebSocket clients
+                wsDict = defaultdict(dict)
+                wsDict[serial][start] = currentProvision
+                await self._publishToWebsockets(wsDict)
 
             return {
                 "message": "All done request handled successfully",
@@ -517,6 +632,21 @@ echo "Provisioning completed successfully!"
                     status_code=404,
                     detail=f'Error getting image for project "{project_name}"',
                 )
+
+        # WebSocket routes
+        @self.app.websocket("/")
+        async def websocket_endpoint(websocket: WebSocket):
+            """
+            Handle WebSocket connections.
+            """
+            await websocket.accept()
+            self.activeWebsockets.append(websocket)
+            try:
+                while True:
+                    # Keep the connection alive by receiving messages
+                    await websocket.receive_text()
+            except WebSocketDisconnect:
+                self.activeWebsockets.remove(websocket)
 
     def setServerIp(self, p_ip: str) -> None:
         """
