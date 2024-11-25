@@ -13,7 +13,7 @@ Facing to mass cm4 provisioning, we are looking for a solution to provision the 
 - must be able to record and retrieve the provisioning results history
 - must be installable on a workstation
 
-I obviously found  [cmprovision](https://github.com/raspberrypi/cmprovision/). BHut it does not meet all the requirements. So I decided to create a new solution based on the cmprovision.
+I obviously found [cmprovision](https://github.com/raspberrypi/cmprovision/). But it does not meet all the requirements. So I decided to create a new solution based on the cmprovision.
 
 ## General operation of the cmprovisiondocker
 
