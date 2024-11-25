@@ -11,3 +11,9 @@ Homestead.json
 Homestead.yaml
 npm-debug.log
 yarn-error.log
+!images/.gitkeep
+images/*
+scriptexecute/cmdline.txt
+conf/projectConfig.json
+!results/.gitkeep
+results/*

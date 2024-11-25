@@ -1,64 +1,102 @@
 #!/usr/bin/env python3
 
-import os
 import yaml
-import subprocess
+import signal
+import uvicorn
+from multiprocessing import Process
+from dnmasq import Dnsmasq
+from hosInterface import HosInterface
+from httpServer import HttpServer
 
 
-def is_ip_assigned(iface, ip):
-    """Check if the IP is already assigned to the interface."""
+class CmProvisionServer:
+    serverInterface: HosInterface
+    dnsmasq: Dnsmasq
+    httpServerProcess: Process
+
+    def __init__(self, p_configFile: str) -> None:
+        """
+        Constructor
+
+        :param p_configFile: The configuration file
+        :type p_configFile: str
+        """
+
+        self.configFile = p_configFile
+        self.hostInterface = ""
+        self.serverIp = ""
+        self.dhcpRange = ""
+        self.cmStatusLed: str = ""
+        self.httpServer: HttpServer = HttpServer()
+        self._loadConfig()
+
+    def _loadConfig(self):
+        """
+        Load the configuration from the YAML file.
+        """
+        with open(self.configFile, "r") as file:
+            config = yaml.safe_load(file)
+
+        self.hostInterface = config["server"]["hostIface"]
+        self.serverIp = config["server"]["serverIp"]
+        self.dhcpRange = config["server"]["dhcpRange"]
+        try:
+            self.cmStatusLed = config["cm"]["statusLed"]
+        except:
+            self.cmStatusLed = ""
+
+    def startHttpServer(self):
+        """
+        Starts the FastAPI HTTP server in a separate process.
+        """
+        self.httpServer.setServerIp(self.serverIp.split("/")[0])
+        self.httpServer.setCmStatusLed(self.cmStatusLed)
+        uvicorn.run(self.httpServer.app, host="0.0.0.0", port=80, log_level="info")
+
+    def run(self):
+        """
+        Configure the network interface, start the HTTP server and dnsmasq.
+        """
+        # Configure the network interface
+        self.serverInterface = HosInterface()
+        self.serverInterface.setIpAddress(self.hostInterface, self.serverIp)
+
+        # Start dnsmasq
+        self.dnsmasq = Dnsmasq()
+        self.dnsmasq.setHostInterface(self.hostInterface)
+        self.dnsmasq.setServerIp(self.serverIp)
+        self.dnsmasq.setDhcpRange(self.dhcpRange)
+        self.dnsmasq.start()
+
+        # Start the HTTP server
+        self.httpServerProcess = Process(target=self.startHttpServer)
+        self.httpServerProcess.start()
+
+    def stop(self):
+        """
+        Stop the HTTP server and dnsmasq.
+        """
+        self.dnsmasq.stop()
+        self.httpServerProcess.terminate()
+
+
+if __name__ == "__main__":
+    # Run the cmprovision server
+    configFile: str = ""
+    cmProvisionServer: CmProvisionServer | None = None
     try:
-        result = subprocess.run(
-            ["ip", "addr", "show", iface], capture_output=True, text=True, check=True
-        )
-        return ip.split("/")[0] in result.stdout
-    except subprocess.CalledProcessError:
-        return False
+        configFile = "/app/conf/cmprovisionserverconf.yml"
+        cmProvisionServer = CmProvisionServer(configFile)
+        cmProvisionServer.run()
 
+        # Block the main thread, waiting for termination signal
+        print("CmProvisionServer is running. Press Ctrl+C to stop.")
+        signal.pause()  # Wait for signal (e.g., SIGINT)
 
-# Load configuration
-config_file = "/app/conf/cmprovisionserverconf.yml"
-with open(config_file, "r") as file:
-    config = yaml.safe_load(file)
-
-host_iface = config["server"]["hostIface"]
-server_ip = config["server"]["serverIp"]
-dhcp_range = config["server"]["dhcpRange"]
-
-# Configure the network interface
-if not is_ip_assigned(host_iface, server_ip):
-    subprocess.run(["ip", "addr", "add", server_ip, "dev", host_iface], check=True)
-else:
-    print(f"IP {server_ip} is already assigned to {host_iface}.")
-subprocess.run(["ip", "link", "set", host_iface, "up"], check=True)
-
-# Generate the dnsmasq configuration
-dnsmasq_config = f"""
-# No DNS
-port=0
-
-# tftp
-enable-tftp
-tftp-root=/tftpboot
-
-# dhcp
-interface={host_iface}
-dhcp-match=set:client_is_a_pi,97,0:52:50:69:34
-dhcp-match=set:client_is_a_pi,97,0:34:69:50:52
-bind-interfaces
-
-log-dhcp
-dhcp-range={dhcp_range}
-pxe-service=tag:client_is_a_pi,0,"Raspberry Pi Boot"
-# dhcp-leasefile=/var/lib/cmprovision/etc/dnsmasq.leases
-no-ping
-"""
-
-dnsmasq_conf_path = "/etc/dnsmasq.conf"
-with open(dnsmasq_conf_path, "w") as file:
-    file.write(dnsmasq_config)
-
-# Start dnsmasq
-subprocess.run(
-    ["dnsmasq", "--no-daemon", f"--conf-file={dnsmasq_conf_path}"], check=True
-)
+    except Exception as e:
+        print(f"Error running cmprovision server: {e}")
+    finally:
+        print("Stopping cmprovision server.")
+        if cmProvisionServer is not None:
+            cmProvisionServer.stop()
+        print("Stopped cmprovision server.")

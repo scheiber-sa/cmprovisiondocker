@@ -10,3 +10,7 @@ services:
     volumes:
       - ./conf:/app/conf
       - ./scriptexecute:/tftpboot
+      - ./images:/uploads
+      - ./results:/app/results
+    environment:
+      - TZ=Europe/Paris
