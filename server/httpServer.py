@@ -6,6 +6,7 @@ from starlette.responses import FileResponse, JSONResponse
 import hashlib
 import os
 from datetime import datetime
+from projectManager import ProjectManager
 
 
 class HttpServer:
@@ -20,10 +21,25 @@ class HttpServer:
         Initialize the FastAPI application.
         """
         self.serverIp = ""
-        self.imageName = "mb-box-prod_.wic.xz"
         self.cmStatusLed = "NONE"
         self.app = FastAPI(title="CM Provision Server")
+        self.projectManager = ProjectManager()
+        self.imageName = ""
+        self._getImageActiveName()
+
+        # self.imageName = self.projectManager.getActiveProjectName()
         self.setupRoutes()
+
+    def _getImageActiveName(self):
+        """
+        Get the image name of the active project.
+        """
+        self.imageName = ""
+        status, name = self.projectManager.getActiveProjectName()
+        if status:
+            status, imageName = self.projectManager.getImageFromProject(name)
+            if status:
+                self.imageName = imageName
 
     def setupRoutes(self):
         """
@@ -46,6 +62,7 @@ class HttpServer:
             """
             Handles GET requests from the Raspberry Pi.
             """
+            self._getImageActiveName()
             # Generate a response script based on the request parameters
             script = f"""#!/bin/sh
 #!/bin/sh
@@ -371,6 +388,135 @@ echo "Provisioning completed successfully!"
             return JSONResponse(
                 content={"message": f'Image "{image}" deleted successfully'}
             )
+
+        @self.app.post("/project/create")
+        def create_project(
+            project_name: str = Form(...),
+            status: bool = Form(...),
+            image: str = Form(...),
+        ):
+            """
+            Create a new project.
+
+            :param project_name: The project name
+            :param status: The project status
+            :param image: The project image
+            """
+            status = self.projectManager.createProject(project_name, status, image)
+            if status:
+                return JSONResponse(
+                    content={
+                        "message": f'Project "{project_name}" created successfully'
+                    }
+                )
+            else:
+                raise HTTPException(
+                    status_code=500,
+                    detail=f'Error creating project "{project_name}"',
+                )
+
+        @self.app.get("/project/delete")
+        def delete_project(project_name: str = Query(...)):
+            """
+            Delete a project.
+
+            :param project_name: The project name
+            """
+            status = self.projectManager.deleteProject(project_name)
+            if status:
+                return JSONResponse(
+                    content={
+                        "message": f'Project "{project_name}" deleted successfully'
+                    }
+                )
+            else:
+                raise HTTPException(
+                    status_code=500,
+                    detail=f'Error deleting project "{project_name}"',
+                )
+
+        @self.app.get("/project/getbyname")
+        def get_project_by_name(project_name: str = Query(...)):
+            """
+            Get a project by name.
+
+            :param project_name: The project name
+            """
+            status, project = self.projectManager.getProject(project_name)
+            if status:
+                return JSONResponse(content=project)
+            else:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f'Project "{project_name}" not found',
+                )
+
+        @self.app.get("/project/list")
+        def list_projects():
+            """
+            List all projects.
+            """
+            status, projects = self.projectManager.getProjects()
+            if status:
+                return JSONResponse(content=projects)
+            else:
+                raise HTTPException(status_code=500, detail="Error listing projects")
+
+        @self.app.post("/project/setactive")
+        def set_active_project(project_name: str = Form(...)):
+            """
+            Set the active project.
+
+            :param project_name: The project name
+            """
+            status = self.projectManager.setActiveProject(project_name)
+            if status:
+                return JSONResponse(
+                    content={"message": f'Project "{project_name}" set as active'}
+                )
+            else:
+                raise HTTPException(
+                    status_code=500,
+                    detail=f'Error setting project "{project_name}" as active',
+                )
+
+        @self.app.get("/project/getactive")
+        def get_active_project():
+            """
+            Get the active project.
+            """
+            status, project = self.projectManager.getActiveProject()
+            if status:
+                return JSONResponse(content=project)
+            else:
+                raise HTTPException(status_code=404, detail="No active project found")
+
+        @self.app.get("/project/getactiveprojectname")
+        def get_active_project_name():
+            """
+            Get the active project name.
+            """
+            status, name = self.projectManager.getActiveProjectName()
+            if status:
+                return JSONResponse(content=name)
+            else:
+                raise HTTPException(status_code=404, detail="No active project found")
+
+        @self.app.get("/project/getimagefromproject")
+        def get_image_from_project(project_name: str = Query(...)):
+            """
+            Get the image associated with a project.
+
+            :param project_name: The project name
+            """
+            status, imageName = self.projectManager.getImageFromProject(project_name)
+            if status:
+                return JSONResponse(content=imageName)
+            else:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f'Error getting image for project "{project_name}"',
+                )
 
     def setServerIp(self, p_ip: str) -> None:
         """

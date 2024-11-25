@@ -1,5 +1,8 @@
 import subprocess
 import threading
+import time
+
+from projectManager import ProjectManager
 
 
 class Dnsmasq:
@@ -8,6 +11,7 @@ class Dnsmasq:
     serverIp: str = ""
     dhcpRange: str = ""
     config: str = ""
+    projectManager: ProjectManager
     _thread: threading.Thread
     _stopEvent: threading.Event = threading.Event()
 
@@ -15,7 +19,7 @@ class Dnsmasq:
         """
         Constructor
         """
-        pass
+        self.projectManager = ProjectManager()
 
     def setHostInterface(self, hostInterface: str) -> None:
         self.hostInterface = hostInterface
@@ -85,7 +89,15 @@ no-ping
         """
         Thread target to run the dnsmasq process.
         """
+
         while not self._stopEvent.is_set():
+            projectName = ""
+            # Until the project name is "" and the project status is False, wait
+            while projectName == "":
+                print("Waiting for active project...")
+                time.sleep(0.5)
+                status, projectName = self.projectManager.getActiveProjectName()
+                print(f"Project name: {projectName}, status: {status}")
             self._run()
 
     def start(self) -> None:
