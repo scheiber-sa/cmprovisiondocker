@@ -38,10 +38,10 @@ class CmProvisionServer:
         with open(self.configFile, "r") as file:
             config = yaml.safe_load(file)
 
-        self.hostInterface = config["server"]["hostIface"]
-        self.serverIp = config["server"]["serverIp"]
-        self.dhcpRange = config["server"]["dhcpRange"]
-        self.port = config["server"]["port"]
+        self.hostInterface = config["cmProvisionServer"]["hostIface"]
+        self.serverIp = config["cmProvisionServer"]["serverIp"]
+        self.dhcpRange = config["cmProvisionServer"]["dhcpRange"]
+        self.port = config["cmProvisionServer"]["restApiPort"]
         try:
             self.cmStatusLed = config["cm"]["statusLed"]
         except:

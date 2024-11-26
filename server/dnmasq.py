@@ -94,10 +94,8 @@ no-ping
             projectName = ""
             # Until the project name is "" and the project status is False, wait
             while projectName == "":
-                print("Waiting for active project...")
                 time.sleep(0.5)
-                status, projectName = self.projectManager.getActiveProjectName()
-                print(f"Project name: {projectName}, status: {status}")
+                _, projectName = self.projectManager.getActiveProjectName()
             self._run()
 
     def start(self) -> None:
