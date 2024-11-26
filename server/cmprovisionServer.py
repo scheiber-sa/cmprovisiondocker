@@ -74,14 +74,10 @@ class CmProvisionServer:
         """
         Stop the HTTP server and dnsmasq.
         """
-        try:
+        if "dnsmaq" in self.__dict__:
             self.dnsmasq.stop()
-        except:
-            pass
-        try:
+        if "httpServerProcess" in self.__dict__:
             self.httpServerProcess.terminate()
-        except:
-            pass
 
 
 if __name__ == "__main__":

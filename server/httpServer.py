@@ -18,6 +18,7 @@ class HttpServer:
     serverIp: str
     imageName: str
     cmStatusLed: str
+    cmStatusLedOnOnsuccess: str
     activeWebsockets: list
 
     def __init__(
@@ -28,6 +29,7 @@ class HttpServer:
         """
         self.serverIp = ""
         self.cmStatusLed = "NONE"
+        self.cmStatusLedOnOnsuccess = "0"
         self.app = FastAPI(title="CM Provision Server", version="1.0.0")
         self.projectManager = ProjectManager()
         self.resultManager = ResultManager()
@@ -411,6 +413,7 @@ class HttpServer:
             active: bool = Form(...),
             image: str = Form(...),
             cm_status_led: Optional[int] = Form(None),
+            cm_status_led_on_onsuccess: Optional[bool] = Form(None),
         ):
             """
             Create a new project.
@@ -423,6 +426,10 @@ class HttpServer:
             statusLed = cm_status_led
             if cm_status_led is None:
                 statusLed = -1
+
+            statusLedOnOnsuccess = cm_status_led_on_onsuccess
+            if cm_status_led_on_onsuccess is None:
+                statusLedOnOnsuccess = False
             # check if image exists
             if not os.path.exists(f"/uploads/{image}"):
                 raise HTTPException(
@@ -438,7 +445,7 @@ class HttpServer:
                 )
 
             active = self.projectManager.createProject(
-                project_name, active, image, statusLed
+                project_name, active, image, statusLed, statusLedOnOnsuccess
             )
             if active:
                 return JSONResponse(
@@ -644,12 +651,20 @@ export SERIAL="{p_serial}"
 export SERVER="{self.serverIp}"
 export IMAGE="{self.imageName}"
 export STATUS_LED="{self.cmStatusLed}"
+export STATUS_LED_ON_ONSUCCESS="{self.cmStatusLedOnOnsuccess}"
 export STARTTIME="{p_startTime}"
 export STORAGE="/dev/mmcblk0"
 export PART1="/dev/mmcblk0p1"
 export PART2="/dev/mmcblk0p2"
 export ALLDONE="0"
 
+if [ "$STATUS_LED_ON_ONSUCCESS" = "1" ]; then
+    export LED_SUCCESS_STATE="1"
+    export LED_FAILURE_STATE="0"
+else
+    export LED_SUCCESS_STATE="0"
+    export LED_FAILURE_STATE="1"
+fi
 
 
 if [ "$STATUS_LED" != "NONE" ]; then
@@ -706,13 +721,13 @@ if [ $RETCODE -eq 0 ]; then
     ALLDONE="1"
     if [ "$STATUS_LED" != "NONE" ]; then
         kill $BLINK_PID
-        echo 1 > /sys/class/gpio/gpio$STATUS_LED/value
+        echo ${{LED_SUCCESS_STATE}} > /sys/class/gpio/gpio$STATUS_LED/value
     fi
 else
     echo Writing image failed.
     if [ "$STATUS_LED" != "NONE" ]; then
         kill $BLINK_PID
-        echo 0 > /sys/class/gpio/gpio$STATUS_LED/value
+        echo ${{LED_FAILURE_STATE}} > /sys/class/gpio/gpio$STATUS_LED/value
     fi
     curl --retry 10 -g -F 'log=@/tmp/dd.log' "http://${{SERVER}}/scriptexecute/error?serial=${{SERIAL}}&retcode=$RETCODE&phase=dd&start=${{STARTTIME}}"
     exit 1
@@ -745,6 +760,10 @@ echo "Provisioning completed successfully!"
             if status:
                 if int(project["cmStatusLed"]) != -1:
                     self.cmStatusLed = str((project["cmStatusLed"]))
+                if project["cmStatusLedOnOnsuccess"]:
+                    self.cmStatusLedOnOnsuccess = "1"
+                else:
+                    self.cmStatusLedOnOnsuccess = "0"
 
     async def _publishToWebsockets(self, data: dict):
         """

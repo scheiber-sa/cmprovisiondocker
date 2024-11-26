@@ -416,8 +416,23 @@ curl -X 'POST' \
   'http://0.0.0.0/project/create' \
   -H 'accept: application/json' \
   -H 'Content-Type: application/x-www-form-urlencoded' \
-  -d 'project_name=first&status=true&image=image.wic.xz&cm_status_led=12'
+  -d 'project_name=second&active=true&image=image.wic.xz&cm_status_led=12&cm_status_led_on_onsuccess=true'
 ```
+
+Parameters:
+
+- `project_name`: The name of the project
+- `active`: The project status. If the project is active, the cm4 will be provisioned with the image defined in the project
+- `image`: The image to provision the cm4
+- `cm_status_led` : The GPIO pin of the status led. The status led is used to indicate the status of the cm4 provisioning. The status led is optional.
+- `cm_status_led_on_onsuccess`: The status led status when the image writing is successful. The status led status is optional.
+
+The led status is as follows:
+
+- 'blinking': during the image writing
+- 'on': if the image writing is successful, if `cm_status_led_on_onsuccess` is set to 'true', otherwise 'off'
+- 'off': if the image writing is failed, if `cm_status_led_on_onsuccess` is set to 'true', otherwise 'on'
+
 
 response:
 

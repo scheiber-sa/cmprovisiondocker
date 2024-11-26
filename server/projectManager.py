@@ -49,6 +49,7 @@ class ProjectManager:
         p_active: bool,
         p_image: str,
         p_cmStatusLed: Optional[int] = None,
+        p_cmStatusLedOnOnsuccess: Optional[bool] = None,
     ) -> bool:
         """
         Create a new project.
@@ -69,6 +70,10 @@ class ProjectManager:
         if p_cmStatusLed is None:
             statusLed = -1
 
+        statusLedOnOnsuccess = p_cmStatusLedOnOnsuccess
+        if p_cmStatusLedOnOnsuccess is None:
+            statusLedOnOnsuccess = False
+
         try:
             # if p_active == "True", all other project statuses are set to False
             if p_active == True:
@@ -79,6 +84,7 @@ class ProjectManager:
                 "active": p_active,
                 "image": p_image,
                 "cmStatusLed": statusLed,
+                "cmStatusLedOnOnsuccess": statusLedOnOnsuccess,
             }
             self._saveConfig()
             status = True
