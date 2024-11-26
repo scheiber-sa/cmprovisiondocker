@@ -11,7 +11,7 @@ from collections import defaultdict
 from datetime import datetime
 from projectManager import ProjectManager
 from resultManager import ResultManager
-import json
+from typing import Optional
 
 
 class HttpServer:
@@ -32,7 +32,7 @@ class HttpServer:
         self.projectManager = ProjectManager()
         self.resultManager = ResultManager()
         self.imageName = ""
-        self._getImageActiveName()
+        self._getImageActiveNameAndCmStatusLed()
         self.activeWebsockets = []
 
         self.setupRoutes()
@@ -64,7 +64,7 @@ class HttpServer:
             The script is sent to the Raspberry CM
             """
             # Get the active image name
-            self._getImageActiveName()
+            self._getImageActiveNameAndCmStatusLed()
 
             # Create a provision info dictionary
             startTime = datetime.now()
@@ -408,8 +408,9 @@ class HttpServer:
         @self.app.post("/project/create", tags=["Project Management"])
         def create_project(
             project_name: str = Form(...),
-            status: bool = Form(...),
+            active: bool = Form(...),
             image: str = Form(...),
+            cm_status_led: Optional[int] = Form(None),
         ):
             """
             Create a new project.
@@ -417,7 +418,11 @@ class HttpServer:
             :param project_name: The project name
             :param status: The project status (active or inactive)
             :param image: The project image
+            :param cm_status_led: The CM status LED
             """
+            statusLed = cm_status_led
+            if cm_status_led is None:
+                statusLed = -1
             # check if image exists
             if not os.path.exists(f"/uploads/{image}"):
                 raise HTTPException(
@@ -432,8 +437,10 @@ class HttpServer:
                     detail=f"Project '{project_name}' already exists",
                 )
 
-            status = self.projectManager.createProject(project_name, status, image)
-            if status:
+            active = self.projectManager.createProject(
+                project_name, active, image, statusLed
+            )
+            if active:
                 return JSONResponse(
                     content={
                         "message": f"Project '{project_name}' created successfully"
@@ -617,16 +624,6 @@ class HttpServer:
         """
         self.serverIp = p_ip
 
-    def setCmStatusLed(self, p_led: str) -> None:
-        """
-        Set the CM status LED.
-
-        :param p_led: The CM status LED
-        :type p_led: str
-        """
-        if p_led != "":
-            self.cmStatusLed = p_led
-
     def _generateCm4Script(self, p_serial: str, p_startTime: str) -> str:
         """
         Generate the CM4 script.
@@ -733,7 +730,7 @@ echo "Provisioning completed successfully!"
 """
         return script
 
-    def _getImageActiveName(self):
+    def _getImageActiveNameAndCmStatusLed(self):
         """
         Get the image name of the active project.
         """
@@ -743,6 +740,11 @@ echo "Provisioning completed successfully!"
             status, imageName = self.projectManager.getImageFromProject(name)
             if status:
                 self.imageName = imageName
+
+            status, project = self.projectManager.getProject(name)
+            if status:
+                if int(project["cmStatusLed"]) != -1:
+                    self.cmStatusLed = str((project["cmStatusLed"]))
 
     async def _publishToWebsockets(self, data: dict):
         """

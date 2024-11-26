@@ -113,7 +113,10 @@ no-ping
         """
         Stop the dnsmasq service and thread.
         """
-        self._stopEvent.set()
-        subprocess.run(["killall", "dnsmasq"], check=True)
-        if self._thread:
-            self._thread.join()
+        try:
+            self._stopEvent.set()
+            subprocess.run(["killall", "dnsmasq"], check=True)
+            if self._thread:
+                self._thread.join()
+        except:
+            pass

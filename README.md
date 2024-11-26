@@ -376,8 +376,6 @@ cmProvisionServer:
   serverIp: "192.168.5.1/16"
   dhcpRange: "192.168.5.2,192.168.255.255,255.255.0.0"
   restApiPort: 80
-cm:
-  statusLed: "12"
 ```
 
 _Note : If your network interface is managed by network tool such as NetworkManager, you should disable it for this interface. Or simply set the same ip in NetworkManager you have defined in the configuration. Otherwise, the cmprovisiondocker server will not be able to manage the network interface properly._
@@ -387,7 +385,6 @@ _Note : If your network interface is managed by network tool such as NetworkMana
 - `serverIp`: The IP address of the cmprovisiondocker server. It composed of the IP address and the subnet mask
 - `dhcpRange`: The DHCP range of the cmprovisiondocker server.
 - `restApiPort`: The port of the restful API
-- `statusLed`: The GPIO pin of the status led. The status led is used to indicate the status of the cm4 provisioning. The status led is optional.
 
 The led status is as follows:
 
@@ -419,7 +416,7 @@ curl -X 'POST' \
   'http://0.0.0.0/project/create' \
   -H 'accept: application/json' \
   -H 'Content-Type: application/x-www-form-urlencoded' \
-  -d 'project_name=first&status=true&image=image.wic.xz'
+  -d 'project_name=first&status=true&image=image.wic.xz&cm_status_led=12'
 ```
 
 response:

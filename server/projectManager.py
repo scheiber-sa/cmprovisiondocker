@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import json
+from typing import Optional
 
 
 class ProjectManager:
@@ -42,14 +43,20 @@ class ProjectManager:
 
         self._loadConfig()
 
-    def createProject(self, p_projectName: str, p_status: bool, p_image: str) -> bool:
+    def createProject(
+        self,
+        p_projectName: str,
+        p_active: bool,
+        p_image: str,
+        p_cmStatusLed: Optional[int] = None,
+    ) -> bool:
         """
         Create a new project.
 
         :param p_projectName: The project name
         :type p_projectName: str
-        :param p_status: The project status
-        :type p_status: bool
+        :param p_active: The project status
+        :type p_active: bool
         :param p_image: The project image
         :type p_image: str
 
@@ -58,13 +65,21 @@ class ProjectManager:
         """
         status = False
 
-        try:
-            # if p_status == "True", all other project statuses are set to False
-            if p_status == "True":
-                for project in self.config:
-                    self.config[project]["status"] = False
+        statusLed = p_cmStatusLed
+        if p_cmStatusLed is None:
+            statusLed = -1
 
-            self.config[p_projectName] = {"status": p_status, "image": p_image}
+        try:
+            # if p_active == "True", all other project statuses are set to False
+            if p_active == "True":
+                for project in self.config:
+                    self.config[project]["active"] = False
+
+            self.config[p_projectName] = {
+                "active": p_active,
+                "image": p_image,
+                "cmStatusLed": statusLed,
+            }
             self._saveConfig()
             status = True
         except Exception as e:
@@ -140,9 +155,9 @@ class ProjectManager:
         status = False
         try:
             for project in self.config:
-                self.config[project]["status"] = False
+                self.config[project]["active"] = False
 
-            self.config[p_projectName]["status"] = True
+            self.config[p_projectName]["active"] = True
             self._saveConfig()
             status = True
         except Exception as e:
@@ -160,7 +175,7 @@ class ProjectManager:
         status = False
         try:
             for project in self.config:
-                if self.config[project]["status"]:
+                if self.config[project]["active"]:
                     status = True
                     return status, self.config[project]
         except Exception as e:
@@ -178,10 +193,10 @@ class ProjectManager:
         self._loadConfig()
         status = False
         try:
-            for project in self.config:
-                if self.config[project]["status"]:
+            for projectName in self.config:
+                if self.config[projectName]["active"]:
                     status = True
-                    return status, project
+                    return status, projectName
         except Exception as e:
             pass
 
