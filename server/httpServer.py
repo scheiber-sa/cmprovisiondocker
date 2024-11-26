@@ -34,7 +34,6 @@ class HttpServer:
         self.projectManager = ProjectManager()
         self.resultManager = ResultManager()
         self.imageName = ""
-        self._getImageActiveNameAndCmStatusLed()
         self.activeWebsockets = []
 
         self.setupRoutes()
