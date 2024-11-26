@@ -71,7 +71,7 @@ class ProjectManager:
 
         try:
             # if p_active == "True", all other project statuses are set to False
-            if p_active == "True":
+            if p_active == True:
                 for project in self.config:
                     self.config[project]["active"] = False
 
