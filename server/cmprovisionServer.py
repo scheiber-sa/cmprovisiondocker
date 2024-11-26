@@ -26,6 +26,7 @@ class CmProvisionServer:
         self.hostInterface = ""
         self.serverIp = ""
         self.dhcpRange = ""
+        self.port = 0
         self.cmStatusLed: str = ""
         self.httpServer: HttpServer = HttpServer()
         self._loadConfig()
@@ -40,6 +41,7 @@ class CmProvisionServer:
         self.hostInterface = config["server"]["hostIface"]
         self.serverIp = config["server"]["serverIp"]
         self.dhcpRange = config["server"]["dhcpRange"]
+        self.port = config["server"]["port"]
         try:
             self.cmStatusLed = config["cm"]["statusLed"]
         except:
@@ -51,7 +53,9 @@ class CmProvisionServer:
         """
         self.httpServer.setServerIp(self.serverIp.split("/")[0])
         self.httpServer.setCmStatusLed(self.cmStatusLed)
-        uvicorn.run(self.httpServer.app, host="0.0.0.0", port=80, log_level="info")
+        uvicorn.run(
+            self.httpServer.app, host="0.0.0.0", port=self.port, log_level="info"
+        )
 
     def run(self):
         """
