@@ -72,17 +72,17 @@ Then the CM4 will boot the `kernel.img` and then `scriptexecute.img`.
 Lets look at the `scriptexecute.img` content:
 
 ```bash
-$ cd scriptexecute
-$ file scriptexecute.img
+cd scriptexecute
+file scriptexecute.img
 scriptexecute.img: XZ compressed data, checksum CRC32
-$ cp scriptexecute.img scriptexecute.xz
-$ xz -d scriptexecute.xz
-$ file scriptexecute
+cp scriptexecute.img scriptexecute.xz
+xz -d scriptexecute.xz
+file scriptexecute
 scriptexecute: ASCII cpio archive (SVR4 with no CRC)
-$ mkdir scriptexecute_content
-$ cd scriptexecute_content
-$ cpio -idmv < ../scriptexecute
-$ ls -l
+mkdir scriptexecute_content
+cd scriptexecute_content
+cpio -idmv < ../scriptexecute
+ls -l
 total 72
 drwxrwxr-x 17 pierr0t pierr0t 4096 nov.  26 09:50 ./
 drwxrwxr-x  4 pierr0t pierr0t 4096 nov.  26 09:50 ../
@@ -125,7 +125,7 @@ ls -l ./etc/init.d/
 The `S99scriptexec` script is the script that will provision the cm4. The script will download the image from the cmprovisiondocker server and write it to the internal storage of the cm4.
 
 ```bash
-$ cat etc/init.d/S99scriptexec
+cat etc/init.d/S99scriptexec
 #!/bin/sh
 
 #
@@ -304,8 +304,8 @@ curl -g --retry 10 --retry-connrefused -o /tmp/script "$SCRIPT"
 
 The `SCRIPT` variable is the URL of the script to download. Is partly set by the kernel command line options `cmdline.txt`:
 ```bash
-$ cd scriptexecute
-$ $ cat cmdline.txt
+cd scriptexecute
+cat cmdline.txt
 readjumper script=http://192.168.5.1/scriptexecute?serial={serial}&model={model}&storagesize={storagesize}&mac={mac}&inversejumper={jumper}&memorysize={memorysize}&temp={temp}&cid={cid}&csd={csd}&bootmode={bootmode}
 ```
 
@@ -401,7 +401,7 @@ docker compose up -d --build;docker logs -f cmprovision
 Upload the image to the cmprovisiondocker server.
 
 ```bash
-$ curl -X POST "http://0.0.0.0/image/upload-image"   -F "image=@image.wic.xz"   -F "sha256sum=59f76e1e5fbc56e220409b28008364b4163e876b15ed456fb688a6e6235d0f08"
+curl -X POST "http://0.0.0.0/image/upload-image"   -F "image=@image.wic.xz"   -F "sha256sum=59f76e1e5fbc56e220409b28008364b4163e876b15ed456fb688a6e6235d0f08"
 ```
 
 response:
