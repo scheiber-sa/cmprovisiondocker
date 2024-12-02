@@ -108,6 +108,8 @@ drwxr-xr-x  4 pierr0t pierr0t 4096 nov.  26 09:50 var/
 
 We can see that the `scriptexecute.img` is a cpio archive. The content of the archive is the root filesystem of the cm4. The cm4 will boot on this filesystem and execute the `init` script.
 
+_Note: `scriptexecute.img` sources are available [here](https://github.com/raspberrypi/scriptexecutor)_
+
 Look at `./etc/init.d/`:
 
 ```bash
