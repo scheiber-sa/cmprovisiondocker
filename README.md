@@ -389,12 +389,6 @@ _Note : If your network interface is managed by network tool such as NetworkMana
 - `dhcpRange`: The DHCP range of the cmprovisiondocker server.
 - `restApiPort`: The port of the restful API
 
-The led status is as follows:
-
-- 'blinking': during the image writing
-- 'on': if the image writing is successful
-- 'off': if the image writing is failed
-
 Then, you can start the cmprovisiondocker server.
 
 ```bash
