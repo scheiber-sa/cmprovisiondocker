@@ -347,7 +347,7 @@ When a cm4 boots from the network, the cmprovisiondocker server will provide the
 | History of provisioning | :white_check_mark: | :white_check_mark: |
 | Live status of provisioning | :white_check_mark: | :white_check_mark: |
 | User interface | :white_check_mark: | :x: |
-| Restful API | :x: | :white_check_mark: |
+| Documented Restful API | :x: | :white_check_mark: |
 | Websocket for provioning events | :x: | :white_check_mark: |
 | Installable on a workstation | :x: | :white_check_mark: |
 | Installable on a rpi4 | :white_check_mark: | :white_check_mark: |
