@@ -65,7 +65,7 @@ class HttpServer:
             The script is sent to the Raspberry CM
             """
             # Get the active image name
-            self._getImageActiveNameAndCmStatusLed()
+            self._getImageActiveNameAndCmStatusLed(storagesize)
 
             # Create a provision info dictionary
             startTime = datetime.now()
@@ -410,7 +410,9 @@ class HttpServer:
         def create_project(
             project_name: str = Form(...),
             active: bool = Form(...),
-            image: str = Form(...),
+            image8Gb: str = Form(...),
+            image16Gb: Optional[str] = Form(None),
+            image32Gb: Optional[str] = Form(None),
             cm_status_led: Optional[int] = Form(None),
             cm_status_led_on_onsuccess: Optional[bool] = Form(None),
         ):
@@ -419,9 +421,10 @@ class HttpServer:
 
             :param project_name: The project name
             :param status: The project status (active or inactive)
-            :param image: The project image
+            :param image8Gb: The project image for 8GB storage
             :param cm_status_led: The CM status LED
             """
+
             statusLed = cm_status_led
             if cm_status_led is None:
                 statusLed = -1
@@ -430,9 +433,9 @@ class HttpServer:
             if cm_status_led_on_onsuccess is None:
                 statusLedOnOnsuccess = False
             # check if image exists
-            if not os.path.exists(f"/uploads/{image}"):
+            if not os.path.exists(f"/uploads/{image8Gb}"):
                 raise HTTPException(
-                    status_code=404, detail=f"Image '{image}' not found"
+                    status_code=404, detail=f"Image '{image8Gb}' not found"
                 )
 
             # check if project exists
@@ -444,7 +447,13 @@ class HttpServer:
                 )
 
             active = self.projectManager.createProject(
-                project_name, active, image, statusLed, statusLedOnOnsuccess
+                project_name,
+                active,
+                image8Gb,
+                image16Gb,
+                image32Gb,
+                statusLed,
+                statusLedOnOnsuccess,
             )
             if active:
                 return JSONResponse(
@@ -532,9 +541,17 @@ class HttpServer:
 
             :param project_name: The project name
             """
-            status, imageName = self.projectManager.getImageFromProject(project_name)
+            status, imageName8Gb, imageName16Gb, imageName32Gb = (
+                self.projectManager.getImagesFromProject(project_name)
+            )
             if status:
-                return JSONResponse(content=imageName)
+                return JSONResponse(
+                    content={
+                        "8Gb": imageName8Gb,
+                        "16Gb": imageName16Gb,
+                        "32Gb": imageName32Gb,
+                    }
+                )
             else:
                 raise HTTPException(
                     status_code=404,
@@ -744,16 +761,33 @@ echo "Provisioning completed successfully!"
 """
         return script
 
-    def _getImageActiveNameAndCmStatusLed(self):
+    def _getImageActiveNameAndCmStatusLed(
+        self, p_targetFlashSize: Optional[int] = None
+    ) -> None:
         """
         Get the image name of the active project.
         """
+        targetFlashSize = 7
+        if p_targetFlashSize is not None:
+            targetFlashSize: float = float(p_targetFlashSize)
+            targetFlashSize = (targetFlashSize * 512) / (1024 * 1024 * 1024)
+
         self.imageName = ""
         status, name = self.projectManager.getActiveProjectName()
         if status:
-            status, imageName = self.projectManager.getImageFromProject(name)
+            status, imageName8Gb, imageName16Gb, imageName32Gb = (
+                self.projectManager.getImagesFromProject(name)
+            )
             if status:
-                self.imageName = imageName
+                if targetFlashSize <= 8:
+                    print(f"8Gb selected, image: {imageName8Gb}")
+                    self.imageName = imageName8Gb
+                elif targetFlashSize >= 8 and targetFlashSize <= 16:
+                    print(f"16Gb selected, image: {imageName16Gb}")
+                    self.imageName = imageName16Gb
+                else:
+                    print(f"32Gb selected, image: {imageName32Gb}")
+                    self.imageName = imageName32Gb
 
             status, project = self.projectManager.getProject(name)
             if status:

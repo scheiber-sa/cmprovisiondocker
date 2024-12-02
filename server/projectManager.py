@@ -47,7 +47,9 @@ class ProjectManager:
         self,
         p_projectName: str,
         p_active: bool,
-        p_image: str,
+        p_image8Gb: str,
+        p_image16Gb: Optional[str] = None,
+        p_image32Gb: Optional[str] = None,
         p_cmStatusLed: Optional[int] = None,
         p_cmStatusLedOnOnsuccess: Optional[bool] = None,
     ) -> bool:
@@ -66,6 +68,14 @@ class ProjectManager:
         """
         status = False
 
+        image16Gb = p_image16Gb
+        if p_image16Gb is None:
+            image16Gb = ""
+
+        image32Gb = p_image32Gb
+        if p_image32Gb is None:
+            image32Gb = ""
+
         statusLed = p_cmStatusLed
         if p_cmStatusLed is None:
             statusLed = -1
@@ -82,7 +92,9 @@ class ProjectManager:
 
             self.config[p_projectName] = {
                 "active": p_active,
-                "image": p_image,
+                "image8Gb": p_image8Gb,
+                "image16Gb": image16Gb,
+                "image32Gb": image32Gb,
                 "cmStatusLed": statusLed,
                 "cmStatusLedOnOnsuccess": statusLedOnOnsuccess,
             }
@@ -208,7 +220,7 @@ class ProjectManager:
 
         return status, ""
 
-    def getImageFromProject(self, p_projectName: str) -> tuple[bool, str]:
+    def getImagesFromProject(self, p_projectName: str) -> tuple[bool, str, str, str]:
         """
         Get the image from a project.
 
@@ -221,8 +233,21 @@ class ProjectManager:
         status = False
         try:
             status = True
-            return status, self.config[p_projectName]["image"]
+            return (
+                status,
+                self.config[p_projectName]["image8Gb"],
+                (
+                    self.config[p_projectName]["image16Gb"]
+                    if self.config[p_projectName].get("image16Gb")
+                    else self.config[p_projectName]["image8Gb"]
+                ),
+                (
+                    self.config[p_projectName]["image32Gb"]
+                    if self.config[p_projectName].get("image32Gb")
+                    else self.config[p_projectName]["image8Gb"]
+                ),
+            )
         except KeyError as e:
             pass
 
-        return status, ""
+        return status, "", "", ""

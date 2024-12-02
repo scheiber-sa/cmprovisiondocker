@@ -399,7 +399,7 @@ docker compose up -d --build;docker logs -f cmprovision
 Upload the image to the cmprovisiondocker server.
 
 ```bash
-curl -X POST "http://0.0.0.0/image/upload-image"   -F "image=@image.wic.xz"   -F "sha256sum=59f76e1e5fbc56e220409b28008364b4163e876b15ed456fb688a6e6235d0f08"
+curl -X POST "http://0.0.0.0/image/upload-image"   -F "image=@image_8.wic.xz"   -F "sha256sum=59f76e1e5fbc56e220409b28008364b4163e876b15ed456fb688a6e6235d0f08"
 ```
 
 response:
@@ -414,14 +414,16 @@ curl -X 'POST' \
   'http://0.0.0.0/project/create' \
   -H 'accept: application/json' \
   -H 'Content-Type: application/x-www-form-urlencoded' \
-  -d 'project_name=second&active=true&image=image.wic.xz&cm_status_led=12&cm_status_led_on_onsuccess=true'
+  -d 'project_name=third&active=true&image8Gb=image_8.wic.xz&image16Gb=image_16.wic.xz&image32Gb=image_32.wic.xz&cm_status_led=12&cm_status_led_on_onsuccess=true'
 ```
 
 Parameters:
 
 - `project_name`: The name of the project
 - `active`: The project status. If the project is active, the cm4 will be provisioned with the image defined in the project
-- `image`: The image to provision the cm4
+- `image8Gb`: The image to provision the cm4 with 8Gb of internal storage.
+- `image16Gb`: The image to provision the cm4 with 16Gb of internal storage.This parameter is optional. If not set, the cm4 will be provisioned with the image defined in `image8Gb`.
+- `image32Gb`: The image to provision the cm4 with 32Gb of internal storage. This parameter is optional. If not set, the cm4 will be provisioned with the image defined in `image8Gb`.
 - `cm_status_led` : The GPIO pin of the status led. The status led is used to indicate the status of the cm4 provisioning. The status led is optional.
 - `cm_status_led_on_onsuccess`: The status led status when the image writing is successful. The status led status is optional.
 
