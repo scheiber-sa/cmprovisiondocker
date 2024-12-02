@@ -70,11 +70,11 @@ class ProjectManager:
 
         image16Gb = p_image16Gb
         if p_image16Gb is None:
-            image16Gb = ""
+            image16Gb = p_image8Gb
 
         image32Gb = p_image32Gb
         if p_image32Gb is None:
-            image32Gb = ""
+            image32Gb = p_image8Gb
 
         statusLed = p_cmStatusLed
         if p_cmStatusLed is None:
