@@ -343,6 +343,7 @@ When a cm4 boots from the network, the cmprovisiondocker server will provide the
 | Destination storage device | :white_check_mark: | :x: |
 | EEPROM firmware update | :white_check_mark: | :x: |
 | Extra scripts | :white_check_mark: | :x: |
+| Control managed swicth | :white_check_mark: | :x: |
 | History of provisioning | :white_check_mark: | :white_check_mark: |
 | Live status of provisioning | :white_check_mark: | :white_check_mark: |
 | User interface | :white_check_mark: | :x: |
