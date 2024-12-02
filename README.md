@@ -1,5 +1,5 @@
-# Raspberry Pi Compute Module Provisioning System Containerized
 # cmprovisiondocker
+# Raspberry Pi Compute Module Provisioning System Containerized
 
 
 
@@ -332,7 +332,7 @@ When a cm4 boots from the network, the cmprovisiondocker server will provide the
 
 ## Comparison with cmprovision
 
-| Feature | cmprovision | cmprovision-docker |
+| Feature | cmprovision | cmprovisiondocker |
 | --- | --- | --- |
 | Multiple cm4s provisioning | :white_check_mark: | :white_check_mark: |
 | Project management | :white_check_mark: | :white_check_mark: |
