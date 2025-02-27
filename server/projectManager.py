@@ -52,6 +52,7 @@ class ProjectManager:
         p_image32Gb: Optional[str] = None,
         p_cmStatusLed: Optional[int] = None,
         p_cmStatusLedOnOnsuccess: Optional[bool] = None,
+        p_eeprom: Optional[str] = None,
     ) -> bool:
         """
         Create a new project.
@@ -60,8 +61,19 @@ class ProjectManager:
         :type p_projectName: str
         :param p_active: The project status
         :type p_active: bool
-        :param p_image: The project image
-        :type p_image: str
+        :param p_image8Gb: The image for 8Gb
+        :type p_image8Gb: str
+        :param p_image16Gb: The image for 16Gb
+        :type p_image16Gb: str
+        :param p_image32Gb: The image for 32Gb
+        :type p_image32Gb: str
+        :param p_cmStatusLed: The status LED
+        :type p_cmStatusLed: int
+        :param p_cmStatusLedOnOnsuccess: The status LED on success
+        :type p_cmStatusLedOnOnsuccess: bool
+        :param p_eeprom: The EEPROM
+        :type p_eeprom: str
+
 
         :return: The status
         :rtype: bool
@@ -84,6 +96,10 @@ class ProjectManager:
         if p_cmStatusLedOnOnsuccess is None:
             statusLedOnOnsuccess = False
 
+        eeprom = p_eeprom
+        if p_eeprom is None:
+            eeprom = ""
+
         try:
             # if p_active == "True", all other project statuses are set to False
             if p_active == True:
@@ -97,6 +113,7 @@ class ProjectManager:
                 "image32Gb": image32Gb,
                 "cmStatusLed": statusLed,
                 "cmStatusLedOnOnsuccess": statusLedOnOnsuccess,
+                "eeprom": eeprom,
             }
             self._saveConfig()
             status = True

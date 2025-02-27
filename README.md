@@ -341,7 +341,7 @@ When a cm4 boots from the network, the cmprovisiondocker server will provide the
 | Image gz support | :white_check_mark: | :x: |
 | Image bz2 support | :white_check_mark: | :x: |
 | Destination storage device | :white_check_mark: | :x: |
-| EEPROM firmware update | :white_check_mark: | :x: |
+| EEPROM firmware update | :white_check_mark: | :white_check_mark: |
 | Extra scripts | :white_check_mark: | :x: |
 | Control managed swicth | :white_check_mark: | :x: |
 | History of provisioning | :white_check_mark: | :white_check_mark: |

@@ -17,6 +17,7 @@ from typing import Optional
 class HttpServer:
     serverIp: str
     imageName: str
+    eeprom: str
     cmStatusLed: str
     cmStatusLedOnOnsuccess: str
     activeWebsockets: list
@@ -34,6 +35,7 @@ class HttpServer:
         self.projectManager = ProjectManager()
         self.resultManager = ResultManager()
         self.imageName = ""
+        self.eeprom = ""
         self.activeWebsockets = []
 
         self.setupRoutes()
@@ -84,10 +86,12 @@ class HttpServer:
                     "csd": csd,
                     "bootmode": bootmode,
                     "eeprom": "",
+                    "eeepromsha": "",
                 },
                 "cmProvisionInfo": {
                     "projectName": activeProjectName,
                     "image": self.imageName,
+                    "eeprom": self.eeprom,
                     "starTime": str(startTime),
                     "endTime": "",
                     "duration": "",
@@ -114,6 +118,7 @@ class HttpServer:
         async def cm_request_upload_eeprom_version(
             serial: str = Query(..., description="Device serial number"),
             eeprom_version: UploadFile = File(..., description="EEPROM version file"),
+            eepromsha: str = Query(..., description="EEPROM SHA256 checksum"),
             start: str = Query(..., description="Start time"),
         ):
             """
@@ -146,6 +151,8 @@ class HttpServer:
                     currentProvision["cmInfo"]["eeprom"] = str(decoded_content).replace(
                         "\n", ","
                     )
+                    currentProvision["cmInfo"]["eeepromsha"] = eepromsha
+                    # Save the modified result
                     self.resultManager.modifyResult(serial, start, currentProvision)
 
                     # Live update the WebSocket clients
@@ -279,7 +286,7 @@ class HttpServer:
                 "verify": verify,
             }
 
-        @self.app.get("/uploads/{filename}", tags=["CM Request"])
+        @self.app.get("/downloadimage/{filename}", tags=["CM Request"])
         async def cm_request_server_the_image(filename: str):
             """
             Serve the requested image file.
@@ -288,6 +295,27 @@ class HttpServer:
             """
             # Construct the full path to the file
             file_path = f"/uploads/{filename}"
+
+            # Check if the file exists
+            if not os.path.exists(file_path):
+                raise HTTPException(status_code=404, detail="File not found")
+
+            # Return the file using FileResponse
+            return FileResponse(
+                file_path,
+                media_type="application/octet-stream",
+                filename=filename,
+            )
+
+        @self.app.get("/downloadeeprom/{filename}", tags=["CM Request"])
+        async def cm_request_server_the_eeprom(filename: str):
+            """
+            Serve the requested EEPROM file.
+
+            :param filename: The name of the file to serve.
+            """
+            # Construct the full path to the file
+            file_path = f"/eeproms/{filename}"
 
             # Check if the file exists
             if not os.path.exists(file_path):
@@ -406,6 +434,112 @@ class HttpServer:
                 content={"message": f"Image '{image}' deleted successfully"}
             )
 
+        @self.app.post("/eeprom/upload-eeprom", tags=["Eeprom Management"])
+        async def upload_eeprom(eeprom: UploadFile, sha256sum: str = Form(...)):
+            """
+            Upload an Eeprom file with its SHA256 checksum for validation.
+
+            :param eeprom: The binary file being uploaded
+            :param sha256sum: The expected SHA256 checksum of the file
+            """
+            # Check if eeprom already exists
+            if os.path.exists(f"/eeproms/{eeprom.filename}"):
+                raise HTTPException(
+                    status_code=400, detail=f"Eeprom '{eeprom.filename}' already exists"
+                )
+            # Read the file's content
+            fileContent = await eeprom.read()
+
+            # Compute the SHA256 checksum of the uploaded file
+            computedSha256sum = hashlib.sha256(fileContent).hexdigest()
+
+            # Verify the checksum
+            if computedSha256sum != sha256sum:
+                raise HTTPException(status_code=400, detail="SHA256 checksum mismatch")
+
+            # save the checksum
+            with open(f"/eeproms/{eeprom.filename}.sha256sum", "w") as f:
+                f.write(sha256sum)
+
+            # Save the file (optional, update the path as needed)
+            with open(f"/eeproms/{eeprom.filename}", "wb") as f:
+                f.write(fileContent)
+
+            return JSONResponse(
+                content={
+                    "filename": eeprom.filename,
+                    "sha256sum": computedSha256sum,
+                    "message": "File uploaded and verified successfully",
+                }
+            )
+
+        @self.app.post(f"/eeprom/list-eeproms", tags=["Eeprom Management"])
+        async def list_all_eeproms():
+            """
+            List all uploaded EEPROMs.
+            """
+            # List all files in the eeproms/eeprom directory
+            files = os.listdir("/eeproms")
+            eepromList = {}
+            for file in files:
+                # Read the SHA256 checksum of the file
+                if file.endswith(".sha256sum"):
+                    with open(f"/eeproms/{file}", "r") as f:
+                        sha256sum = f.read()
+                        eepromList[file.replace(".sha256sum", "")] = {
+                            "upload": datetime.fromtimestamp(
+                                os.path.getmtime(f"/eeproms/{file}")
+                            ).strftime("%Y-%m-%d_%H:%M:%S"),
+                            "sha256sum": sha256sum,
+                        }
+
+            return JSONResponse(content={"eeproms": eepromList})
+
+        @self.app.get("/eeprom/download-eeprom", tags=["Eeprom Management"])
+        async def download_eeprom(eeprom: str):
+            """
+            Download an EEPROM.
+
+            :param eeprom: The name of the EEPROM file to download.
+            """
+            # Construct the full file path
+            file_path = f"/eeproms/{eeprom}"
+
+            # Check if the eeprom exists
+            if not os.path.exists(file_path):
+                raise HTTPException(
+                    status_code=404, detail=f"EEPROM '{eeprom}' not found"
+                )
+
+            # Return the file using FileResponse
+            return FileResponse(
+                file_path, media_type="application/octet-stream", filename=eeprom
+            )
+
+        @self.app.delete("/eeprom/delete-eeprom", tags=["Eeprom Management"])
+        async def delete_eeprom(eeprom: str):
+            """
+            Delete an EEPROM.
+
+            :param eeprom: The name of the EEPROM file to delete.
+            """
+            # Construct the full file path
+            file_path = f"/eeproms/{eeprom}"
+
+            # Check if the eeprom exists
+            if not os.path.exists(file_path):
+                raise HTTPException(
+                    status_code=404, detail=f"EEPROM '{eeprom}' not found"
+                )
+
+            # Delete the file
+            os.remove(file_path)
+            os.remove(f"{file_path}.sha256sum")
+
+            return JSONResponse(
+                content={"message": f"EEPROM '{eeprom}' deleted successfully"}
+            )
+
         @self.app.post("/project/create", tags=["Project Management"])
         def create_project(
             project_name: str = Form(...),
@@ -415,6 +549,7 @@ class HttpServer:
             image32Gb: Optional[str] = Form(None),
             cm_status_led: Optional[int] = Form(None),
             cm_status_led_on_onsuccess: Optional[bool] = Form(None),
+            eeprom: Optional[str] = Form(None),
         ):
             """
             Create a new project.
@@ -454,6 +589,7 @@ class HttpServer:
                 image32Gb,
                 statusLed,
                 statusLedOnOnsuccess,
+                eeprom,
             )
             if active:
                 return JSONResponse(
@@ -666,6 +802,7 @@ set -o pipefail
 export SERIAL="{p_serial}"
 export SERVER="{self.serverIp}"
 export IMAGE="{self.imageName}"
+export EEPROM="{self.eeprom}"
 export STATUS_LED="{self.cmStatusLed}"
 export STATUS_LED_ON_ONSUCCESS="{self.cmStatusLedOnOnsuccess}"
 export STARTTIME="{p_startTime}"
@@ -720,15 +857,28 @@ echo "OM7WfoL5UW24E1cO2B66wuMvZVVAn2yoiZI2bX1ydJqEhPXibBBhZuRFtJWrRKuR" >/dev/ur
 
 echo Querying and registering EEPROM version
 vcgencmd bootloader_version >/tmp/eeprom_version || true
+flashrom -p "linux_spi:dev=/dev/spidev0.0,spispeed=16000" -r "/tmp/pieeprom.bin" || true
+EEPROMSHA=$(sha256sum /tmp/pieeprom.bin | awk '{{print $1}}')
+if [ -n "$EEPROMSHA" ]; then
+    echo
+else
+    EEPROMSHA="emtySHA"
+fi
+
 if [ -f /tmp/eeprom_version ]; then
-    curl --retry 10 -g -F 'eeprom_version=@/tmp/eeprom_version' "http://${{SERVER}}/scriptexecute/eeprom-version?serial=${{SERIAL}}&start=${{STARTTIME}}"
+    curl --retry 10 -g -F 'eeprom_version=@/tmp/eeprom_version' "http://${{SERVER}}/scriptexecute/eeprom-version?serial=${{SERIAL}}&eepromsha=${{EEPROMSHA}}&start=${{STARTTIME}}"
+fi
+
+if [ -n "$EEPROM" ]; then
+    curl -o /tmp/pendingeeprom.bin "http://${{SERVER}}/downloadeeprom/${{EEPROM}}"
+    flashrom -p "linux_spi:dev=/dev/spidev0.0,spispeed=16000" -w "/tmp/pendingeeprom.bin" || true
 fi
 
 echo Sending BLKDISCARD to $STORAGE
 blkdiscard -v $STORAGE || true
 
-echo Writing image from http://${{SERVER}}/uploads/${{IMAGE}} to $STORAGE
-curl --retry 10 -g "http://${{SERVER}}/uploads/${{IMAGE}}" \
+echo Writing image from http://${{SERVER}}/downloadimage/${{IMAGE}} to $STORAGE
+curl --retry 10 -g "http://${{SERVER}}/downloadimage/${{IMAGE}}" \
  | xz -dc  \
  | dd of=$STORAGE conv=fsync obs=1M >/tmp/dd.log 2>&1
 RETCODE=$?
@@ -797,6 +947,8 @@ echo "Provisioning completed successfully!"
                     self.cmStatusLedOnOnsuccess = "1"
                 else:
                     self.cmStatusLedOnOnsuccess = "0"
+                if project["eeprom"] != "":
+                    self.eeprom = project["eeprom"]
 
     async def _publishToWebsockets(self, data: dict):
         """

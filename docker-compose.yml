@@ -12,5 +12,6 @@ services:
       - ./scriptexecute:/tftpboot
       - ./images:/uploads
       - ./results:/app/results
+      - ./eeproms:/eeproms
     environment:
       - TZ=Europe/Paris

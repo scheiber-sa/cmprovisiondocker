@@ -18,3 +18,5 @@ conf/projectConfig.json
 !results/.gitkeep
 results/*
 checks.json
+*.bin
+*.bin.sha256sum
