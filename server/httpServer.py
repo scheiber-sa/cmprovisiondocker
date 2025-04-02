@@ -929,6 +929,7 @@ echo "Provisioning completed successfully!"
                 self.projectManager.getImagesFromProject(name)
             )
             if status:
+                self.imageName = imageName8Gb
                 if targetFlashSize <= 8:
                     print(f"8Gb selected, image: {imageName8Gb}")
                     self.imageName = imageName8Gb
