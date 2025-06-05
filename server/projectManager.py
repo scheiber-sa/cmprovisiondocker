@@ -1,18 +1,20 @@
 #!/usr/bin/env python3
 
 import json
-from typing import Optional
+from typing import Any, Optional
 
 
 class ProjectManager:
     configPath: str = "/app/conf/projectConfig.json"
-    config: dict
+    config: dict[str, dict[str, Any]]
     _instance = None
     __initialized = False
 
-    def __new__(cls, *args, **kwargs):
+    def __new__(cls, *args: Any, **kwargs: Any):
+        args = args
+        kwargs = kwargs
         if cls._instance is None:
-            cls._instance = super().__new__(cls)  # cls is used to create the instance
+            cls._instance = super().__new__(cls)
         return cls._instance
 
     def __init__(self):
@@ -118,6 +120,7 @@ class ProjectManager:
             self._saveConfig()
             status = True
         except Exception as e:
+            e = e
             pass
 
         return status
@@ -138,11 +141,12 @@ class ProjectManager:
             self._saveConfig()
             status = True
         except Exception as e:
+            e = e
             pass
 
         return status
 
-    def getProject(self, p_projectName: str) -> tuple[bool, dict]:
+    def getProject(self, p_projectName: str) -> tuple[bool, dict[str, dict[str, Any]]]:
         """
         Get a project.
 
@@ -157,11 +161,12 @@ class ProjectManager:
             status = True
             return status, self.config[p_projectName]
         except KeyError as e:
+            e = e
             pass
 
         return status, {}
 
-    def getProjects(self) -> tuple[bool, dict]:
+    def getProjects(self) -> tuple[bool, dict[str, dict[str, Any]]]:
         """
         Get all projects.
 
@@ -173,6 +178,7 @@ class ProjectManager:
             status = True
             return status, self.config
         except Exception as e:
+            e = e
             pass
 
         return status, {}
@@ -196,11 +202,12 @@ class ProjectManager:
             self._saveConfig()
             status = True
         except Exception as e:
+            e = e
             pass
 
         return status
 
-    def getActiveProject(self) -> tuple[bool, dict]:
+    def getActiveProject(self) -> tuple[bool, dict[str, dict[str, Any]]]:
         """
         Get the active project.
 
@@ -214,6 +221,7 @@ class ProjectManager:
                     status = True
                     return status, self.config[project]
         except Exception as e:
+            e = e
             pass
 
         return status, {}
@@ -233,6 +241,7 @@ class ProjectManager:
                     status = True
                     return status, projectName
         except Exception as e:
+            e = e
             pass
 
         return status, ""
@@ -265,6 +274,7 @@ class ProjectManager:
                 ),
             )
         except KeyError as e:
+            e = e
             pass
 
         return status, "", "", ""

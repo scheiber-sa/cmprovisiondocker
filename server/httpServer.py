@@ -16,6 +16,7 @@ from typing import Optional
 
 class HttpServer:
     serverIp: str
+    serverPort: int
     imageName: str
     eeprom: str
     cmStatusLed: str
@@ -783,6 +784,15 @@ class HttpServer:
         """
         self.serverIp = p_ip
 
+    def setServerPort(self, p_port: int) -> None:
+        """
+        Set the server port.
+
+        :param p_port: The server port
+        :type p_port: int
+        """
+        self.serverPort = p_port
+
     def _generateCm4Script(self, p_serial: str, p_startTime: str) -> str:
         """
         Generate the CM4 script.
@@ -800,7 +810,7 @@ class HttpServer:
 set -o pipefail
 
 export SERIAL="{p_serial}"
-export SERVER="{self.serverIp}"
+export SERVER="{self.serverIp}:{self.serverPort}"
 export IMAGE="{self.imageName}"
 export EEPROM="{self.eeprom}"
 export STATUS_LED="{self.cmStatusLed}"

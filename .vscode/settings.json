@@ -1,7 +1,7 @@
 {
     "editor.formatOnSave": true,
     "autoDocstring.docstringFormat": "sphinx",
-    "python.analysis.typeCheckingMode": "standard",
+    "python.analysis.typeCheckingMode": "strict",
     "[python]": {
         "diffEditor.ignoreTrimWhitespace": false,
         "editor.formatOnType": true,
@@ -25,5 +25,7 @@
         "files.eol": "\n",
         "files.trimTrailingWhitespace": true
     },
-
+    "local.python.debug.directory": "${workspaceFolder}/server",
+    "distant.python.debug.directory": "/app",
+    "debugpy.port": 48522,
 }

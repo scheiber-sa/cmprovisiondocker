@@ -20,7 +20,7 @@ WORKDIR /app
 COPY ./server /app
 
 # Install Python dependencies
-RUN pip3 install pyyaml uvicorn fastapi python-multipart 'uvicorn[standard]'
+RUN pip3 install pyyaml uvicorn fastapi python-multipart 'uvicorn[standard]' debugpy
 
 # Make the Python script executable
 RUN chmod +x /app/cmprovisionServer.py
@@ -29,5 +29,13 @@ RUN chmod +x /app/cmprovisionServer.py
 EXPOSE 67/udp 69/udp
 
 # Run the Python script
-CMD ["sh", "-c", "/app/cmprovisionServer.py"]
+CMD ["sh", "-c", "\
+    echo DEBUG_APP=$DEBUG_APP DEBUG_PORT=$DEBUG_PORT; \
+    if [ \"$DEBUG_APP\" = \"1\" ]; then \
+    echo 'Running in debug mode...'; \
+    python3 -m debugpy --listen 0.0.0.0:$DEBUG_PORT --wait-for-client /app/cmprovisionServer.py; \
+    else \
+    echo 'Running normally...'; \
+    python3 /app/cmprovisionServer.py; \
+    fi"]
 # CMD ["sh", "-c", "/app/cmprovisionServer.py; tail -f /dev/null"]

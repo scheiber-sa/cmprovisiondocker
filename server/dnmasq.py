@@ -9,6 +9,7 @@ class Dnsmasq:
     DNSMASQ_CONF_PATH = "/etc/dnsmasq.conf"
     hostInterface: str = ""
     serverIp: str = ""
+    serverPort: int = 0
     dhcpRange: str = ""
     config: str = ""
     projectManager: ProjectManager
@@ -32,6 +33,15 @@ class Dnsmasq:
         :type serverIp: str
         """
         self.serverIp = serverIp
+
+    def setServerPort(self, serverPort: int) -> None:
+        """
+        Set the server port.
+
+        :param serverPort: _description_
+        :type serverPort: int
+        """
+        self.serverPort = serverPort
 
     def setDhcpRange(self, dhcpRange: str) -> None:
         self.dhcpRange = dhcpRange
@@ -79,7 +89,9 @@ no-ping
             "&temp={{temp}}&cid={{cid}}&csd={{csd}}&bootmode={{bootmode}}"
         )
 
-        cmdline = cmdlineTemplate.format(serverIP=self.serverIp.split("/")[0])
+        cmdline = cmdlineTemplate.format(
+            serverIP=self.serverIp.split("/")[0] + ":" + str(self.serverPort)
+        )
         cmdline += f"\n"
 
         with open("/tftpboot/cmdline.txt", "w") as file:

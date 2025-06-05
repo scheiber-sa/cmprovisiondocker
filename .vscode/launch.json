@@ -13,6 +13,36 @@
             // "args": [
             //     "${command:pickArgs}"
             // ]
+        },
+        {
+            "name": "Debug Cmprovisiondocker",
+            "preLaunchTask": "launch-cmprovisiondocker",
+            "postDebugTask": "kill-cmprovisiondocker",
+            "type": "debugpy",
+            "request": "attach",
+            "connect": {
+              "host": "0.0.0.0",
+              "port": "${config:debugpy.port}"
+            },
+            "justMyCode": false,
+            "pathMappings": [
+              {
+                "localRoot": "${config:local.python.debug.directory}",
+                "remoteRoot": "${config:distant.python.debug.directory}"
+              }
+            ]
+        },
+        {
+        "name": "Logs: Cmprovision",
+        "type": "node-terminal",
+        "request": "launch",
+        "command": "while ! docker ps --filter 'name=cmprovision' --filter 'status=running' | grep -q cmprovision; do sleep 1; done; docker logs -f cmprovision"
+        }
+    ],
+    "compounds": [
+        {
+            "name": "Debug Cmprovision + Logs",
+            "configurations": ["Debug Cmprovisiondocker", "Logs: Cmprovision"]
         }
     ]
 }

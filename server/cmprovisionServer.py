@@ -47,6 +47,7 @@ class CmProvisionServer:
         Starts the FastAPI HTTP server in a separate process.
         """
         self.httpServer.setServerIp(self.serverIp.split("/")[0])
+        self.httpServer.setServerPort(self.port)
         uvicorn.run(
             self.httpServer.app, host="0.0.0.0", port=self.port, log_level="info"
         )
@@ -63,6 +64,7 @@ class CmProvisionServer:
         self.dnsmasq = Dnsmasq()
         self.dnsmasq.setHostInterface(self.hostInterface)
         self.dnsmasq.setServerIp(self.serverIp)
+        self.dnsmasq.setServerPort(self.port)
         self.dnsmasq.setDhcpRange(self.dhcpRange)
         self.dnsmasq.start()
 

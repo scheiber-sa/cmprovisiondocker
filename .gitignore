@@ -20,3 +20,5 @@ results/*
 checks.json
 *.bin
 *.bin.sha256sum
+__pycache__
+

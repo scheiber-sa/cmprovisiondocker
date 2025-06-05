@@ -3,6 +3,10 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        DEBUG_APP: ${DEBUG_APP:-0}
+        DEBUG_PORT: ${DEBUG_PORT:-5678}
+
     container_name: cmprovision
     network_mode: host
     cap_add:
@@ -15,3 +19,5 @@ services:
       - ./eeproms:/eeproms
     environment:
       - TZ=Europe/Paris
+      - DEBUG_APP=${DEBUG_APP:-0}
+      - DEBUG_PORT=${DEBUG_PORT:-5678}

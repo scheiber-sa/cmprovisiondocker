@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 
 import json
+from typing import Any
 
 
 class ResultManager:
     resultPath: str = "/app/results/downloadResult.json"
-    results: dict
+    results: dict[Any, Any]
 
     def __init__(self) -> None:
         """
@@ -34,7 +35,7 @@ class ResultManager:
 
         self._loadResult()
 
-    def addResult(self, p_serial: str, p_info: dict) -> None:
+    def addResult(self, p_serial: str, p_info: dict[Any, Any]) -> None:
         """
         Add a result to the results dictionary.
 
@@ -53,7 +54,9 @@ class ResultManager:
             self.results[p_serial] = p_info
         self._saveResult()
 
-    def modifyResult(self, p_serial: str, p_timestamp: str, p_info: dict) -> None:
+    def modifyResult(
+        self, p_serial: str, p_timestamp: str, p_info: dict[Any, Any]
+    ) -> None:
         """
         Modify a result in the results dictionary.
 
@@ -79,7 +82,7 @@ class ResultManager:
         except Exception as e:
             print(f"Error in modifyResult: {e}")
 
-    def getResult(self, p_serial: str, p_timestamp: str) -> dict:
+    def getResult(self, p_serial: str, p_timestamp: str) -> dict[Any, Any]:
         """
         Get the result for the serial number.
 
@@ -102,7 +105,7 @@ class ResultManager:
             print(f"Error in getResult: {e}")
             return {"error": "Error in getResult"}
 
-    def getResultsBySerial(self, p_serial: str) -> dict:
+    def getResultsBySerial(self, p_serial: str) -> dict[Any, Any]:
         """
         Get all the results for the serial number.
 
@@ -122,7 +125,7 @@ class ResultManager:
             print(f"Error in getResultsBySerial: {e}")
             return {"error": "Error in getResultsBySerial"}
 
-    def getResults(self) -> dict:
+    def getResults(self) -> dict[Any, Any]:
         """
         Get all the results.
 

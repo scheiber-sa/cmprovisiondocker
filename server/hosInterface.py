@@ -28,7 +28,7 @@ class HosInterface:
             print(f"IP {p_ipAddress} is already assigned to {p_interface}.")
         subprocess.run(["ip", "link", "set", p_interface, "up"], check=True)
 
-    def _isIpAssigned(self, p_interface, p_ipAddress) -> bool:
+    def _isIpAssigned(self, p_interface: str, p_ipAddress: str) -> bool:
         """
         Check if the IP is already assigned to the interface.
 
