@@ -12,6 +12,13 @@ from datetime import datetime
 from projectManager import ProjectManager
 from resultManager import ResultManager
 from typing import Optional
+import logging
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(levelname)s:     %(message)s",
+    handlers=[logging.StreamHandler()],
+)
 
 
 class HttpServer:
@@ -940,13 +947,13 @@ echo "Provisioning completed successfully!"
             )
             if status:
                 if targetFlashSize <= 8:
-                    print(f"8Gb selected, image: {imageName8Gb}")
+                    logging.info(f"8Gb selected, image: {imageName8Gb}")
                     self.imageName = imageName8Gb
                 elif targetFlashSize >= 8 and targetFlashSize <= 16:
-                    print(f"16Gb selected, image: {imageName16Gb}")
+                    logging.info("16Gb selected, image: {imageName16Gb}")
                     self.imageName = imageName16Gb
                 else:
-                    print(f"32Gb selected, image: {imageName32Gb}")
+                    logging.info(f"32Gb selected, image: {imageName32Gb}")
                     self.imageName = imageName32Gb
 
             status, project = self.projectManager.getProject(name)
@@ -972,7 +979,7 @@ echo "Provisioning completed successfully!"
             try:
                 await websocket.send_json(data)  # Await the coroutine
             except Exception as e:
-                print(f"Error sending data to WebSocket client: {e}")
+                logging.error(f"Error sending data to WebSocket client: {e}")
                 self.activeWebsockets.remove(websocket)
 
         # Create a list of coroutines for all active websockets

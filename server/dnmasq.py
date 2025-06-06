@@ -1,6 +1,13 @@
 import subprocess
 import threading
 import time
+import logging
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(levelname)s:     %(message)s",
+    handlers=[logging.StreamHandler()],
+)
 
 from projectManager import ProjectManager
 
@@ -80,7 +87,7 @@ no-ping
                 check=True,
             )
         except subprocess.CalledProcessError as e:
-            print(f"Error running dnsmasq: {e}")
+            logging.error(f"Error running dnsmasq: {e}")
 
     def _cmdline(self) -> None:
         cmdlineTemplate = (

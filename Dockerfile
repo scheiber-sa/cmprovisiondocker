@@ -13,6 +13,9 @@ RUN apt-get update && apt-get install -y \
     psmisc \
     && apt-get clean
 
+# Set TZ environment variable
+RUN apt-get update && apt-get install -y tzdata
+
 # Set working directory
 WORKDIR /app
 

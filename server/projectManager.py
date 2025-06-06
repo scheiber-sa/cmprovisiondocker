@@ -2,6 +2,13 @@
 
 import json
 from typing import Any, Optional
+import logging
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(levelname)s:     %(message)s",
+    handlers=[logging.StreamHandler()],
+)
 
 
 class ProjectManager:
@@ -32,7 +39,9 @@ class ProjectManager:
             with open(self.configPath, "r") as file:
                 self.config = json.load(file)
         except FileNotFoundError as e:
-            print(f"Error: {e}")
+            logging.warning(
+                f"Configuration file {self.configPath} not found. Creating a new one."
+            )
             self.config = {}
             self._saveConfig()
 

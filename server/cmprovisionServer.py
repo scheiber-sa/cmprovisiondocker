@@ -7,6 +7,13 @@ from multiprocessing import Process
 from dnmasq import Dnsmasq
 from hosInterface import HosInterface
 from httpServer import HttpServer
+import logging
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(levelname)s:     %(message)s",
+    handlers=[logging.StreamHandler()],
+)
 
 
 class CmProvisionServer:
@@ -48,6 +55,9 @@ class CmProvisionServer:
         """
         self.httpServer.setServerIp(self.serverIp.split("/")[0])
         self.httpServer.setServerPort(self.port)
+        logging.info(
+            f"Starting HTTP server, API docs http://{self.httpServer.serverIp}:{self.httpServer.serverPort}/docs"
+        )
         uvicorn.run(
             self.httpServer.app, host="0.0.0.0", port=self.port, log_level="info"
         )
@@ -89,16 +99,16 @@ if __name__ == "__main__":
     try:
         configFile = "/app/conf/cmprovisionserverconf.yml"
         cmProvisionServer = CmProvisionServer(configFile)
+        logging.info("CmProvisionServer is running. Press Ctrl+C to stop.")
         cmProvisionServer.run()
 
         # Block the main thread, waiting for termination signal
-        print("CmProvisionServer is running. Press Ctrl+C to stop.")
         signal.pause()  # Wait for signal (e.g., SIGINT)
 
     except Exception as e:
-        print(f"Error running cmprovision server: {e}")
+        logging.error(f"Error running cmprovision server: {e}")
     finally:
-        print("Stopping cmprovision server.")
+        logging.info("Stopping cmprovision server.")
         if cmProvisionServer is not None:
             cmProvisionServer.stop()
-        print("Stopped cmprovision server.")
+        logging.info("CmProvisionServer stopped.")

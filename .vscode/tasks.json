@@ -4,7 +4,7 @@
         {
             "label": "kill-cmprovisiondocker",
             "type": "shell",
-            "command": "docker compose stop cmprovision --timeout 2"
+            "command": "docker compose stop cmprovision --timeout 0"
         },
         {
             "label": "launch-cmprovisiondocker",

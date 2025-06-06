@@ -1,6 +1,13 @@
 #!/usr/bin/env python3
 
 import subprocess
+import logging
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(levelname)s:     %(message)s",
+    handlers=[logging.StreamHandler()],
+)
 
 
 class HosInterface:
@@ -25,7 +32,7 @@ class HosInterface:
                 ["ip", "addr", "add", p_ipAddress, "dev", p_interface], check=True
             )
         else:
-            print(f"IP {p_ipAddress} is already assigned to {p_interface}.")
+            logging.info(f"Setting IP address {p_ipAddress} on interface {p_interface}")
         subprocess.run(["ip", "link", "set", p_interface, "up"], check=True)
 
     def _isIpAssigned(self, p_interface: str, p_ipAddress: str) -> bool:

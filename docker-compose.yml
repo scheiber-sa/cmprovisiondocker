@@ -17,7 +17,11 @@ services:
       - ./images:/uploads
       - ./results:/app/results
       - ./eeproms:/eeproms
+      # Bind mount for localtime to ensure correct timezone
+      - type: bind
+        source: /etc/localtime
+        target: /etc/localtime
+        read_only: true
     environment:
-      - TZ=Europe/Paris
       - DEBUG_APP=${DEBUG_APP:-0}
       - DEBUG_PORT=${DEBUG_PORT:-5678}

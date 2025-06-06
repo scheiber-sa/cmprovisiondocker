@@ -2,6 +2,13 @@
 
 import json
 from typing import Any
+import logging
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(levelname)s:     %(message)s",
+    handlers=[logging.StreamHandler()],
+)
 
 
 class ResultManager:
@@ -22,7 +29,9 @@ class ResultManager:
             with open(self.resultPath, "r") as file:
                 self.results = json.load(file)
         except FileNotFoundError as e:
-            print(f"Error: {e}")
+            logging.warning(
+                f"Result file {self.resultPath} not found. Creating a new one."
+            )
             self.results = {}
             self._saveResult()
 
@@ -80,7 +89,7 @@ class ResultManager:
                     f"Timestamp '{p_timestamp}' not found for serial '{p_serial}'"
                 )
         except Exception as e:
-            print(f"Error in modifyResult: {e}")
+            logging.error(f"Error in modifyResult: {e}")
 
     def getResult(self, p_serial: str, p_timestamp: str) -> dict[Any, Any]:
         """
@@ -102,7 +111,7 @@ class ResultManager:
             else:
                 return {"error": "Serial number not found"}
         except Exception as e:
-            print(f"Error in getResult: {e}")
+            logging.error(f"Error in getResult: {e}")
             return {"error": "Error in getResult"}
 
     def getResultsBySerial(self, p_serial: str) -> dict[Any, Any]:
@@ -122,7 +131,7 @@ class ResultManager:
             else:
                 return {"error": "Serial number not found"}
         except Exception as e:
-            print(f"Error in getResultsBySerial: {e}")
+            logging.error(f"Error in getResultsBySerial: {e}")
             return {"error": "Error in getResultsBySerial"}
 
     def getResults(self) -> dict[Any, Any]:
