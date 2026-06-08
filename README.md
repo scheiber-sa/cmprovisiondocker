@@ -332,25 +332,25 @@ When a cm4 boots from the network, the cmprovisiondocker server will provide the
 
 ## Comparison with cmprovision
 
-| Feature | cmprovision | cmprovisiondocker |
-| --- | --- | --- |
-| Multiple cm4s provisioning | :white_check_mark: | :white_check_mark: |
-| Project management | :white_check_mark: | :white_check_mark: |
-| Different images provisioning | :white_check_mark: | :white_check_mark: |
-| Image xz support | :white_check_mark: | :white_check_mark: |
-| Image gz support | :white_check_mark: | :x: |
-| Image bz2 support | :white_check_mark: | :x: |
-| Destination storage device | :white_check_mark: | :x: |
-| EEPROM firmware update | :white_check_mark: | :white_check_mark: |
-| Extra scripts | :white_check_mark: | :x: |
-| Control managed swicth | :white_check_mark: | :x: |
-| History of provisioning | :white_check_mark: | :white_check_mark: |
-| Live status of provisioning | :white_check_mark: | :white_check_mark: |
-| User interface | :white_check_mark: | :x: |
-| Documented Restful API | :x: | :white_check_mark: |
-| Websocket for provioning events | :x: | :white_check_mark: |
-| Installable on a workstation | :x: | :white_check_mark: |
-| Installable on a rpi4 | :white_check_mark: | :white_check_mark: |
+| Feature | cmprovision | cmprovisiondocker (cm4) | cmprovisiondocker (cm5) |
+| --- | --- | --- | --- |
+| Multiple cm4s provisioning | :white_check_mark: | :white_check_mark: | :white_check_mark: |
+| Project management | :white_check_mark: | :white_check_mark: | :white_check_mark: |
+| Different images provisioning | :white_check_mark: | :white_check_mark: | :white_check_mark: |
+| Image xz support | :white_check_mark: | :white_check_mark: | :white_check_mark: |
+| Image gz support | :white_check_mark: | :x: | :x: |
+| Image bz2 support | :white_check_mark: | :x: | :x: |
+| Destination storage device | :white_check_mark: | :x: | :x: |
+| EEPROM firmware update | :white_check_mark: | :white_check_mark: | :x: |
+| Extra scripts | :white_check_mark: | :x: | :x: |
+| Control managed swicth | :white_check_mark: | :x: | :x: |
+| History of provisioning | :white_check_mark: | :white_check_mark: | :white_check_mark: |
+| Live status of provisioning | :white_check_mark: | :x: | :x: |
+| User interface | :white_check_mark: | :x: | :x: |
+| Documented Restful API | :x: | :white_check_mark: | :white_check_mark: |
+| Websocket for provioning events | :x: | :white_check_mark: | :white_check_mark: |
+| Installable on a workstation | :x: | :white_check_mark: | :white_check_mark: |
+| Installable on a rpi4/rpi5 | :white_check_mark: | :white_check_mark: | :white_check_mark: |
 
 
 ## Installation
@@ -373,13 +373,14 @@ cd cmprovisiondocker
 
 Set your configuration in `conf/cmprovisionserverconf.yml` file.
 
-```bash
+```yml
 cat conf/cmprovisionserverconf.yml
 cmProvisionServer:
   hostIface: "enx58d56e3ddcd4"
   serverIp: "192.168.5.1/16"
   dhcpRange: "192.168.5.2,192.168.255.255,255.255.0.0"
   restApiPort: 80
+  enableCm5SerialDebug: true
 ```
 
 _Note : If your network interface is managed by network tool such as NetworkManager, you should disable it for this interface. Or simply set the same ip in NetworkManager you have defined in the configuration. Otherwise, the cmprovisiondocker server will not be able to manage the network interface properly._
@@ -389,6 +390,7 @@ _Note : If your network interface is managed by network tool such as NetworkMana
 - `serverIp`: The IP address of the cmprovisiondocker server. It composed of the IP address and the subnet mask
 - `dhcpRange`: The DHCP range of the cmprovisiondocker server.
 - `restApiPort`: The port of the restful API
+- `enableCm5SerialDebug`: Enable the serial debug for cm5 provisioning. It will print the cm5 serial output in the cmprovisiondocker server logs. It is useful for debugging purposes.
 
 Then, you can start the cmprovisiondocker server.
 
@@ -463,4 +465,398 @@ The cmprovisiondocker is a containerized version of the cmprovision. It has a re
 Feel free to propose a new fix or feature by opening a pull request.
 
 
+# CM5 provisioning is under development.
 
+## General operation of the cmprovisiondocker
+
+When a CM5 cant boot from its internal storage, it will boot from the network. The cmprovisiondocker server will provide the cm5 with the necessary files to boot. The cm5 will boot from the network and will be provisioned with the image defined in the project.
+
+### CM5 boot sequence
+In this case, CM5 will request via TFTP all this files:
+```bash
+/tftpboot/config.txt
+/tftpboot/bcm2712-rpi-cm5-cm5io.dtb
+/tftpboot/mb-box-bsp-cm5-26-live__.cpio.gz
+/tftpboot/bcm2712-rpi-cm5-cm5io.dtb
+/tftpboot/overlays/overlay_map.dtb
+/tftpboot/overlays/bcm2712d0.dtbo
+/tftpboot/config.txt
+/tftpboot/overlays/vc4-kms-v3d-pi5.dtbo
+/tftpboot/overlays/dwc2.dtbo
+/tftpboot/cmdline.txt
+/tftpboot/kernel_2712.img
+```
+
+On tftp server side, the cmprovisiondocker server will provide the following files:
+```bash
+scriptexecute/start4.elf
+scriptexecute/kernel_2712.img
+scriptexecute/bcm2712-rpi-cm5-cm5io.dtb
+scriptexecute/config.txt
+scriptexecute/bcm2712-rpi-cm5l-cm5io.dtb
+scriptexecute/mb-box-bsp-cm5-26-live__.cpio.gz
+scriptexecute/overlays
+scriptexecute/bcm2712-rpi-cm5l-cm4io.dtb
+scriptexecute/bcm2712-rpi-cm5-cm4io.dtb
+scriptexecute/bcm2712-rpi-5-b.dtb
+```
+
+Then the CM5 will boot the `kernel_2712.img` and then `mb-box-bsp-cm5-26-live__.cpio.gz`.
+
+Then the `mb-box-bsp-cm5-26-live__.cpio.gz` will be uncompressed and systemd service live-update.service will be executed. This service will request the cmprovisiondocker server to download a script and execute it.
+
+```bash
+[Unit]
+Description=MB-Box CM5 provisioning script executor
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/live-update
+StandardOutput=journal+console
+StandardError=journal+console
+
+[Install]
+WantedBy=multi-user.target
+```
+
+`/usr/bin/live-update` script content:
+```bash
+#!/bin/sh
+
+set -eu
+
+log() {
+    echo "mbbox-scriptexec: $*"
+}
+
+read_dt_string() {
+    file="$1"
+    default="${2:-unknown}"
+
+    if [ -r "$file" ]; then
+        tr -d '\000' < "$file"
+    else
+        printf '%s' "$default"
+    fi
+}
+
+get_cmdline_arg() {
+    name="$1"
+
+    for arg in $(cat /proc/cmdline); do
+        case "$arg" in
+            "$name"=*)
+                printf '%s\n' "${arg#*=}"
+                return 0
+                ;;
+        esac
+    done
+
+    return 1
+}
+
+has_cmdline_flag() {
+    name="$1"
+
+    for arg in $(cat /proc/cmdline); do
+        [ "$arg" = "$name" ] && return 0
+    done
+
+    return 1
+}
+
+get_serial() {
+    serial="$(read_dt_string /proc/device-tree/serial-number "")"
+
+    if [ -n "$serial" ]; then
+        printf '%s' "$serial"
+        return
+    fi
+
+    awk '/^Serial/ { print $3 }' /proc/cpuinfo 2>/dev/null || printf 'unknown'
+}
+
+get_model() {
+    read_dt_string /proc/device-tree/model unknown
+}
+
+get_temp() {
+    if [ -r /sys/class/thermal/thermal_zone0/temp ]; then
+        milli="$(cat /sys/class/thermal/thermal_zone0/temp)"
+        deg=$((milli / 1000))
+        dec=$(((milli % 1000) / 100))
+        printf "%s.%s'C" "$deg" "$dec"
+    else
+        printf 'unknown'
+    fi
+}
+
+get_storage_size() {
+    # Keep same semantic as the original Raspberry Pi script:
+    # /sys/block/mmcblk0/size = number of 512-byte sectors, not bytes.
+    if [ -r /sys/block/mmcblk0/size ]; then
+        cat /sys/block/mmcblk0/size
+    else
+        printf 'unknown'
+    fi
+}
+
+get_cid() {
+    if [ -r /sys/block/mmcblk0/device/cid ]; then
+        cat /sys/block/mmcblk0/device/cid
+    else
+        printf 'unknown'
+    fi
+}
+
+get_csd() {
+    if [ -r /sys/block/mmcblk0/device/csd ]; then
+        cat /sys/block/mmcblk0/device/csd
+    else
+        printf 'unknown'
+    fi
+}
+
+get_bootmode() {
+    file="/proc/device-tree/chosen/bootloader/boot-mode"
+
+    if [ -r "$file" ]; then
+        dd if="$file" bs=1 skip=3 count=1 2>/dev/null \
+            | hexdump -v -e '1/1 "%u"'
+    else
+        printf 'unknown'
+    fi
+}
+
+get_memory_size() {
+    awk '/MemTotal:/ { print $2 }' /proc/meminfo 2>/dev/null || printf 'unknown'
+}
+
+get_mac() {
+    if [ -r /sys/class/net/eth0/address ]; then
+        cat /sys/class/net/eth0/address
+        return
+    fi
+
+    for iface in /sys/class/net/*; do
+        name="$(basename "$iface")"
+        if [ "$name" != "lo" ] && [ -r "$iface/address" ]; then
+            cat "$iface/address"
+            return
+        fi
+    done
+
+    printf 'unknown'
+}
+
+read_one_gpio_sysfs() {
+    gpio="$1"
+
+    if [ ! -d "/sys/class/gpio/gpio${gpio}" ]; then
+        echo "$gpio" > /sys/class/gpio/export 2>/dev/null || true
+        sleep 0.1
+    fi
+
+    if [ -w "/sys/class/gpio/gpio${gpio}/direction" ]; then
+        echo in > "/sys/class/gpio/gpio${gpio}/direction" 2>/dev/null || true
+    fi
+
+    if [ -r "/sys/class/gpio/gpio${gpio}/value" ]; then
+        cat "/sys/class/gpio/gpio${gpio}/value"
+    else
+        printf 'x'
+    fi
+}
+
+get_jumper() {
+    if ! has_cmdline_flag readjumper; then
+        printf ''
+        return
+    fi
+
+    # Preferred: board-specific helper if you provide one.
+    if command -v readjumper >/dev/null 2>&1; then
+        readjumper || printf 'unknown'
+        return
+    fi
+
+    # Compatibility fallback with original CM4 script.
+    # To be validated on your CM5 carrier board.
+    jumper=""
+    for gpio in 5 13 21; do
+        value="$(read_one_gpio_sysfs "$gpio")"
+        jumper="${jumper}${value}"
+    done
+
+    printf '%s' "$jumper"
+}
+
+SCRIPT="$(get_cmdline_arg script || true)"
+
+if [ -z "${SCRIPT:-}" ]; then
+    log "no script= argument in /proc/cmdline"
+    exit 0
+fi
+
+SERIAL="$(get_serial)"
+MODEL="$(get_model)"
+STORAGESIZE="$(get_storage_size)"
+MAC="$(get_mac)"
+JUMPER="$(get_jumper)"
+MEMORYSIZE="$(get_memory_size)"
+TEMP="$(get_temp)"
+CID="$(get_cid)"
+CSD="$(get_csd)"
+BOOTMODE="$(get_bootmode)"
+
+SCRIPT_BASE="${SCRIPT%%\?*}"
+
+log "serial=$SERIAL"
+log "model=$MODEL"
+log "storagesize=$STORAGESIZE"
+log "mac=$MAC"
+log "jumper=$JUMPER"
+log "memorysize=$MEMORYSIZE"
+log "temp=$TEMP"
+log "cid=$CID"
+log "csd=$CSD"
+log "bootmode=$BOOTMODE"
+log "downloading script from $SCRIPT_BASE"
+
+curl -fsS -G \
+    --retry 10 \
+    --retry-delay 2 \
+    --retry-connrefused \
+    --connect-timeout 5 \
+    -o /tmp/script \
+    "$SCRIPT_BASE" \
+    --data-urlencode "serial=$SERIAL" \
+    --data-urlencode "model=$MODEL" \
+    --data-urlencode "storagesize=$STORAGESIZE" \
+    --data-urlencode "mac=$MAC" \
+    --data-urlencode "inversejumper=$JUMPER" \
+    --data-urlencode "memorysize=$MEMORYSIZE" \
+    --data-urlencode "temp=$TEMP" \
+    --data-urlencode "cid=$CID" \
+    --data-urlencode "csd=$CSD" \
+    --data-urlencode "bootmode=$BOOTMODE"
+
+chmod +x /tmp/script || true
+
+log "executing downloaded script"
+exec /bin/sh /tmp/script
+```
+
+example of script to download and execute:
+```bash
+#!/bin/sh
+set -o pipefail
+
+export SERIAL="7329acf8367bf434"
+export SERVER="10.10.10.1:60080"
+export IMAGE="mb-box-cm5-26-prod-16__.wic.xz"
+export EEPROM=""
+export PROGRESS_LED="ACT"
+export PROGRESS_LED_ON_STATE="0"
+export PROGRESS_LED_OFF_STATE="255"
+export ERROR_LED="PWR"
+export ERROR_LED_ON_STATE="255"
+export ERROR_LED_OFF_STATE="0"
+export STARTTIME="20260608_10:30:31"
+export STORAGE="/dev/mmcblk0"
+export PART1="/dev/mmcblk0p1"
+export PART2="/dev/mmcblk0p2"
+export ALLDONE="0"
+
+# SWITCH OFF PROGRESS LED
+if [ "$PROGRESS_LED" != "NONE" ]; then
+    echo none > /sys/class/leds/${PROGRESS_LED}/trigger
+    echo $PROGRESS_LED_OFF_STATE > /sys/class/leds/${PROGRESS_LED}/brightness
+fi
+
+# SWITCH OFF ERROR LED
+if [ "$ERROR_LED" != "NONE" ]; then
+    echo none > /sys/class/leds/${ERROR_LED}/trigger
+    echo $ERROR_LED_OFF_STATE > /sys/class/leds/${ERROR_LED}/brightness
+fi
+
+# BLINK PROGRESS LED
+if [ "$PROGRESS_LED" != "NONE" ]; then
+    echo timer > /sys/class/leds/${PROGRESS_LED}/trigger
+    echo 100 > /sys/class/leds/${PROGRESS_LED}/delay_on
+    echo 100 > /sys/class/leds/${PROGRESS_LED}/delay_off
+fi
+
+
+# Make sure we have random entropy
+echo "OM7WfoL5UW24E1cO2B66wuMvZVVAn2yoiZI2bX1ydJqEhPXibBBhZuRFtJWrRKuR" >/dev/urandom
+
+echo Querying and registering EEPROM version
+vcgencmd bootloader_version >/tmp/eeprom_version || true
+flashrom -p "linux_spi:dev=/dev/spidev0.0,spispeed=16000" -r "/tmp/pieeprom.bin" || true
+EEPROMSHA=$(sha256sum /tmp/pieeprom.bin | awk '{print $1}')
+if [ -n "$EEPROMSHA" ]; then
+    echo
+else
+    EEPROMSHA="emtySHA"
+fi
+
+if [ -f /tmp/eeprom_version ]; then
+    curl --retry 10 -g -F 'eeprom_version=@/tmp/eeprom_version' "http://${SERVER}/scriptexecute/eeprom-version?serial=${SERIAL}&eepromsha=${EEPROMSHA}&start=${STARTTIME}"
+fi
+
+if [ -n "$EEPROM" ]; then
+    curl -o /tmp/pendingeeprom.bin "http://${SERVER}/downloadeeprom/${EEPROM}"
+    flashrom -p "linux_spi:dev=/dev/spidev0.0,spispeed=16000" -w "/tmp/pendingeeprom.bin" || true
+fi
+
+echo Sending BLKDISCARD to $STORAGE
+blkdiscard -v -f $STORAGE || true
+
+echo Writing image from http://${SERVER}/downloadimage/${IMAGE} to $STORAGE
+curl --retry 10 -g "http://${SERVER}/downloadimage/${IMAGE}"  | xz -dc -T0  | dd of=$STORAGE bs=8M 2>&1
+RETCODE=$?
+
+# STOP BLINKING PROGRESS LED
+if [ "$PROGRESS_LED" != "NONE" ]; then
+    echo none > /sys/class/leds/${PROGRESS_LED}/trigger
+    echo $PROGRESS_LED_OFF_STATE > /sys/class/leds/${PROGRESS_LED}/brightness
+fi
+
+if [ $RETCODE -eq 0 ]; then
+    sync
+    # SWITCH ON PROGRESS LED
+    if [ "$PROGRESS_LED" != "NONE" ]; then
+        echo $PROGRESS_LED_ON_STATE > /sys/class/leds/${PROGRESS_LED}/brightness
+    fi
+
+    echo Original image written successfully
+    ALLDONE="1"
+else
+    echo Writing image failed.
+    # BLINK ERROR LED
+    if [ "$ERROR_LED" != "NONE" ]; then
+        echo timer > /sys/class/leds/${ERROR_LED}/trigger
+        echo 100 > /sys/class/leds/${ERROR_LED}/delay_on
+        echo 100 > /sys/class/leds/${ERROR_LED}/delay_off
+    fi
+    # LOG RESULT
+    journalctl -u live-update.service --no-pager > /tmp/dd.log
+    curl --retry 10 -g -F 'log=@/tmp/dd.log' "http://${SERVER}/scriptexecute/error?serial=${SERIAL}&retcode=$RETCODE&phase=dd&start=${STARTTIME}"
+    exit 1
+fi
+
+partprobe $STORAGE
+sleep 0.1
+
+TEMP=vcgencmd measure_temp
+curl --retry 10 -g "http://${SERVER}/scriptexecute/alldone?serial=${SERIAL}&alldone=${ALLDONE}&temp=${TEMP}&verify=&start=${STARTTIME}"
+
+
+echo "Provisioning completed successfully!"
+```
+
+
+This script will be downloaded and executed by the CM5 after it boots from the network. The script will download the image from the cmprovisiondocker server and write it to the internal storage of the CM5. The script will also send the provisioning status to the cmprovisiondocker server.

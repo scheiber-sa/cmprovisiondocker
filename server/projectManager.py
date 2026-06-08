@@ -58,11 +58,15 @@ class ProjectManager:
         self,
         p_projectName: str,
         p_active: bool,
-        p_image8Gb: str,
+        p_image8Gb: Optional[str] = None,
         p_image16Gb: Optional[str] = None,
         p_image32Gb: Optional[str] = None,
-        p_cmStatusLed: Optional[int] = None,
-        p_cmStatusLedOnOnsuccess: Optional[bool] = None,
+        p_cmStatusGpioLed: Optional[int] = None,
+        p_cmStatusGpioLedOnSuccess: Optional[bool] = None,
+        p_progressLed: Optional[str] = None,
+        p_progressLedDrivenLow: Optional[bool] = None,
+        p_errorLed: Optional[str] = None,
+        p_errorLedDrivenLow: Optional[bool] = None,
         p_eeprom: Optional[str] = None,
     ) -> bool:
         """
@@ -78,10 +82,18 @@ class ProjectManager:
         :type p_image16Gb: str
         :param p_image32Gb: The image for 32Gb
         :type p_image32Gb: str
-        :param p_cmStatusLed: The status LED
-        :type p_cmStatusLed: int
-        :param p_cmStatusLedOnOnsuccess: The status LED on success
-        :type p_cmStatusLedOnOnsuccess: bool
+        :param p_cmStatusGpioLed: The status LED
+        :type p_cmStatusGpioLed: int
+        :param p_cmStatusGpioLedOnSuccess: The status LED on success
+        :type p_cmStatusGpioLedOnSuccess: bool
+        :param p_progressLed: The progress LED name visible in /sys/class/leds
+        :type p_progressLed: str
+        :param p_progressLedDrivenLow: Whether the progress LED is driven low (True) or high (False)
+        :type p_progressLedDrivenLow: bool
+        :param p_errorLed: The error LED name visible in /sys/class/leds
+        :type p_errorLed: str
+        :param p_errorLedDrivenLow: Whether the error LED is driven low (True) or high (False)
+        :type p_errorLedDrivenLow: bool
         :param p_eeprom: The EEPROM
         :type p_eeprom: str
 
@@ -91,20 +103,12 @@ class ProjectManager:
         """
         status = False
 
-        image16Gb = p_image16Gb
-        if p_image16Gb is None:
-            image16Gb = p_image8Gb
-
-        image32Gb = p_image32Gb
-        if p_image32Gb is None:
-            image32Gb = p_image8Gb
-
-        statusLed = p_cmStatusLed
-        if p_cmStatusLed is None:
+        statusLed = p_cmStatusGpioLed
+        if p_cmStatusGpioLed is None:
             statusLed = -1
 
-        statusLedOnOnsuccess = p_cmStatusLedOnOnsuccess
-        if p_cmStatusLedOnOnsuccess is None:
+        statusLedOnOnsuccess = p_cmStatusGpioLedOnSuccess
+        if p_cmStatusGpioLedOnSuccess is None:
             statusLedOnOnsuccess = False
 
         eeprom = p_eeprom
@@ -120,10 +124,14 @@ class ProjectManager:
             self.config[p_projectName] = {
                 "active": p_active,
                 "image8Gb": p_image8Gb,
-                "image16Gb": image16Gb,
-                "image32Gb": image32Gb,
-                "cmStatusLed": statusLed,
-                "cmStatusLedOnOnsuccess": statusLedOnOnsuccess,
+                "image16Gb": p_image16Gb,
+                "image32Gb": p_image32Gb,
+                "cmStatusGpioLed": statusLed,
+                "cmStatusGpioLedOnSuccess": statusLedOnOnsuccess,
+                "progressLed": p_progressLed,
+                "progressLedDrivenLow": p_progressLedDrivenLow,
+                "errorLed": p_errorLed,
+                "errorLedDrivenLow": p_errorLedDrivenLow,
                 "eeprom": eeprom,
             }
             self._saveConfig()

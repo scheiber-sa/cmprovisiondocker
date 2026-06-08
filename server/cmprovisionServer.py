@@ -34,6 +34,7 @@ class CmProvisionServer:
         self.serverIp = ""
         self.dhcpRange = ""
         self.port = 0
+        self.enableCm5SerialDebug = False
         self.httpServer: HttpServer = HttpServer()
         self._loadConfig()
 
@@ -48,6 +49,9 @@ class CmProvisionServer:
         self.serverIp = config["cmProvisionServer"]["serverIp"]
         self.dhcpRange = config["cmProvisionServer"]["dhcpRange"]
         self.port = config["cmProvisionServer"]["restApiPort"]
+        self.enableCm5SerialDebug = config["cmProvisionServer"].get(
+            "enableCm5SerialDebug", False
+        )
 
     def startHttpServer(self):
         """
@@ -76,6 +80,7 @@ class CmProvisionServer:
         self.dnsmasq.setServerIp(self.serverIp)
         self.dnsmasq.setServerPort(self.port)
         self.dnsmasq.setDhcpRange(self.dhcpRange)
+        self.dnsmasq.setEnableCm5SerialDebug(self.enableCm5SerialDebug)
         self.dnsmasq.start()
 
         # Start the HTTP server

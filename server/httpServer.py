@@ -13,6 +13,9 @@ from projectManager import ProjectManager
 from resultManager import ResultManager
 from typing import Optional
 import logging
+from boardType import BoardType
+from scriptGenerator import generateCm4Script
+from scriptGenerator import generateCm5Script
 
 logging.basicConfig(
     level=logging.INFO,
@@ -28,6 +31,10 @@ class HttpServer:
     eeprom: str
     cmStatusLed: str
     cmStatusLedOnOnsuccess: str
+    cmProgressLed: str
+    cmProgressLedDrivenLow: bool
+    cmErrorLed: str
+    cmErrorLedDrivenLow: bool
     activeWebsockets: list
 
     def __init__(
@@ -118,7 +125,13 @@ class HttpServer:
             self.resultManager.addResult(serial, provisionInfo)
 
             # Generate a response script based on the request parameters
-            script = self._generateCm4Script(serial, startTimeStr)
+            logging.info(
+                f"Generating script for serial: {serial}, model: {model}, storagesize: {((storagesize * 512) / (1024 * 1024 * 1024)):.1f} GB"
+            )
+            if "Compute Module 4" in model:
+                script = self._generateCmScript(serial, startTimeStr, BoardType.CM4)
+            elif "Compute Module 5" in model:
+                script = self._generateCmScript(serial, startTimeStr, BoardType.CM5)
 
             return PlainTextResponse(content=script, media_type="text/plain")
 
@@ -552,11 +565,27 @@ class HttpServer:
         def create_project(
             project_name: str = Form(...),
             active: bool = Form(...),
-            image8Gb: str = Form(...),
+            image8Gb: Optional[str] = Form(None),
             image16Gb: Optional[str] = Form(None),
             image32Gb: Optional[str] = Form(None),
-            cm_status_led: Optional[int] = Form(None),
-            cm_status_led_on_onsuccess: Optional[bool] = Form(None),
+            cm_status_led_gpio_nb: Optional[int] = Form(None),
+            cm_status_led_gpio_on_onsuccess: Optional[bool] = Form(None),
+            cm_progress_led: Optional[str] = Form(
+                default="ACT",
+                description="For cm5 only, name visible in /sys/class/leds, default ACT (green). The led will blink during fw upgrade, then switch off.",
+            ),
+            cm_progress_led_driven_low: Optional[bool] = Form(
+                default=False,
+                description="For cm5 only, whether the progress led is driven low (True) or high (False), default False. This is used to set the correct state of the led during provisioning.",
+            ),
+            cm_error_led: Optional[str] = Form(
+                default="PWR",
+                description="For cm5 only, name visible in /sys/class/leds, default PWR (red). The led will blink if an error occurs during provisioning, else stay off.",
+            ),
+            cm_error_led_driven_low: Optional[bool] = Form(
+                default=False,
+                description="For cm5 only, whether the error led is driven low (True) or high (False), default False. This is used to set the correct state of the led during provisioning.",
+            ),
             eeprom: Optional[str] = Form(None),
         ):
             """
@@ -566,20 +595,17 @@ class HttpServer:
             :param status: The project status (active or inactive)
             :param image8Gb: The project image for 8GB storage
             :param cm_status_led: The CM status LED
+            :param cm_progress_led: The CM progress LED
+            :param cm_error_led: The CM error LED
             """
 
-            statusLed = cm_status_led
-            if cm_status_led is None:
+            statusLed = cm_status_led_gpio_nb
+            if cm_status_led_gpio_nb is None:
                 statusLed = -1
 
-            statusLedOnOnsuccess = cm_status_led_on_onsuccess
-            if cm_status_led_on_onsuccess is None:
+            statusLedOnOnsuccess = cm_status_led_gpio_on_onsuccess
+            if cm_status_led_gpio_on_onsuccess is None:
                 statusLedOnOnsuccess = False
-            # check if image exists
-            if not os.path.exists(f"/uploads/{image8Gb}"):
-                raise HTTPException(
-                    status_code=404, detail=f"Image '{image8Gb}' not found"
-                )
 
             # check if project exists
             _, projects = self.projectManager.getProjects()
@@ -590,14 +616,18 @@ class HttpServer:
                 )
 
             active = self.projectManager.createProject(
-                project_name,
-                active,
-                image8Gb,
-                image16Gb,
-                image32Gb,
-                statusLed,
-                statusLedOnOnsuccess,
-                eeprom,
+                p_projectName=project_name,
+                p_active=active,
+                p_image8Gb=image8Gb,
+                p_image16Gb=image16Gb,
+                p_image32Gb=image32Gb,
+                p_cmStatusGpioLed=statusLed,
+                p_cmStatusGpioLedOnSuccess=statusLedOnOnsuccess,
+                p_progressLed=cm_progress_led,
+                p_progressLedDrivenLow=cm_progress_led_driven_low,
+                p_errorLed=cm_error_led,
+                p_errorLedDrivenLow=cm_error_led_driven_low,
+                p_eeprom=eeprom,
             )
             if active:
                 return JSONResponse(
@@ -656,17 +686,6 @@ class HttpServer:
                     detail=f"Error setting project '{project_name}' as active",
                 )
 
-        @self.app.get("/project/getactive", tags=["Project Management"])
-        def get_active_project():
-            """
-            Get the active project.
-            """
-            status, project = self.projectManager.getActiveProject()
-            if status:
-                return JSONResponse(content=project)
-            else:
-                raise HTTPException(status_code=404, detail="No active project found")
-
         @self.app.get("/project/getactiveprojectname", tags=["Project Management"])
         def get_active_project_name():
             """
@@ -675,6 +694,17 @@ class HttpServer:
             status, name = self.projectManager.getActiveProjectName()
             if status:
                 return JSONResponse(content=name)
+            else:
+                raise HTTPException(status_code=404, detail="No active project found")
+
+        @self.app.get("/project/getactive", tags=["Project Management"])
+        def get_active_project():
+            """
+            Get the active project.
+            """
+            status, project = self.projectManager.getActiveProject()
+            if status:
+                return JSONResponse(content=project)
             else:
                 raise HTTPException(status_code=404, detail="No active project found")
 
@@ -800,7 +830,9 @@ class HttpServer:
         """
         self.serverPort = p_port
 
-    def _generateCm4Script(self, p_serial: str, p_startTime: str) -> str:
+    def _generateCmScript(
+        self, p_serial: str, p_startTime: str, p_boardType: BoardType
+    ) -> str:
         """
         Generate the CM4 script.
 
@@ -812,121 +844,32 @@ class HttpServer:
         :return: The generated script
         :rtype: str
         """
-        script = f"""#!/bin/sh
-#!/bin/sh
-set -o pipefail
-
-export SERIAL="{p_serial}"
-export SERVER="{self.serverIp}:{self.serverPort}"
-export IMAGE="{self.imageName}"
-export EEPROM="{self.eeprom}"
-export STATUS_LED="{self.cmStatusLed}"
-export STATUS_LED_ON_ONSUCCESS="{self.cmStatusLedOnOnsuccess}"
-export STARTTIME="{p_startTime}"
-export STORAGE="/dev/mmcblk0"
-export PART1="/dev/mmcblk0p1"
-export PART2="/dev/mmcblk0p2"
-export ALLDONE="0"
-
-if [ "$STATUS_LED_ON_ONSUCCESS" = "1" ]; then
-    export LED_SUCCESS_STATE="1"
-    export LED_FAILURE_STATE="0"
-else
-    export LED_SUCCESS_STATE="0"
-    export LED_FAILURE_STATE="1"
-fi
-
-
-if [ "$STATUS_LED" != "NONE" ]; then
-    # Export the STATUS_LED (makes it available in /sys/class/gpio)
-    if [ ! -d "/sys/class/gpio/gpio$STATUS_LED" ]; then
-        echo $STATUS_LED > /sys/class/gpio/export
-    fi
-
-    # Set the direction to "out"
-    echo "out" > /sys/class/gpio/gpio$STATUS_LED/direction
-
-    # Function for blinking
-    blink() {{
-        while true; do
-            # Turn STATUS_LED on (high)
-            echo "1" > /sys/class/gpio/gpio$STATUS_LED/value
-            sleep 0.1
-
-            # Turn STATUS_LED off (low)
-            echo "0" > /sys/class/gpio/gpio$STATUS_LED/value
-            sleep 0.1
-        done
-    }}
-
-    # Start the blink function in the background
-    blink &
-
-    # Save the process ID of the background task
-    BLINK_PID=$!
-
-    echo "Blinking started. PID: $BLINK_PID"
-    echo "Run 'kill $BLINK_PID' to stop blinking."
-fi
-
-# Make sure we have random entropy
-echo "OM7WfoL5UW24E1cO2B66wuMvZVVAn2yoiZI2bX1ydJqEhPXibBBhZuRFtJWrRKuR" >/dev/urandom
-
-echo Querying and registering EEPROM version
-vcgencmd bootloader_version >/tmp/eeprom_version || true
-flashrom -p "linux_spi:dev=/dev/spidev0.0,spispeed=16000" -r "/tmp/pieeprom.bin" || true
-EEPROMSHA=$(sha256sum /tmp/pieeprom.bin | awk '{{print $1}}')
-if [ -n "$EEPROMSHA" ]; then
-    echo
-else
-    EEPROMSHA="emtySHA"
-fi
-
-if [ -f /tmp/eeprom_version ]; then
-    curl --retry 10 -g -F 'eeprom_version=@/tmp/eeprom_version' "http://${{SERVER}}/scriptexecute/eeprom-version?serial=${{SERIAL}}&eepromsha=${{EEPROMSHA}}&start=${{STARTTIME}}"
-fi
-
-if [ -n "$EEPROM" ]; then
-    curl -o /tmp/pendingeeprom.bin "http://${{SERVER}}/downloadeeprom/${{EEPROM}}"
-    flashrom -p "linux_spi:dev=/dev/spidev0.0,spispeed=16000" -w "/tmp/pendingeeprom.bin" || true
-fi
-
-echo Sending BLKDISCARD to $STORAGE
-blkdiscard -v $STORAGE || true
-
-echo Writing image from http://${{SERVER}}/downloadimage/${{IMAGE}} to $STORAGE
-curl --retry 10 -g "http://${{SERVER}}/downloadimage/${{IMAGE}}" \
- | xz -dc  \
- | dd of=$STORAGE conv=fsync obs=1M >/tmp/dd.log 2>&1
-RETCODE=$?
-if [ $RETCODE -eq 0 ]; then
-    echo Original image written successfully
-    ALLDONE="1"
-    if [ "$STATUS_LED" != "NONE" ]; then
-        kill $BLINK_PID
-        echo ${{LED_SUCCESS_STATE}} > /sys/class/gpio/gpio$STATUS_LED/value
-    fi
-else
-    echo Writing image failed.
-    if [ "$STATUS_LED" != "NONE" ]; then
-        kill $BLINK_PID
-        echo ${{LED_FAILURE_STATE}} > /sys/class/gpio/gpio$STATUS_LED/value
-    fi
-    curl --retry 10 -g -F 'log=@/tmp/dd.log' "http://${{SERVER}}/scriptexecute/error?serial=${{SERIAL}}&retcode=$RETCODE&phase=dd&start=${{STARTTIME}}"
-    exit 1
-fi
-
-partprobe $STORAGE
-sleep 0.1
-
-TEMP=vcgencmd measure_temp
-curl --retry 10 -g "http://${{SERVER}}/scriptexecute/alldone?serial=${{SERIAL}}&alldone=${{ALLDONE}}&temp=${{TEMP}}&verify=&start=${{STARTTIME}}"
-
-
-echo "Provisioning completed successfully!"
-
-"""
-        return script
+        if p_boardType == BoardType.CM4:
+            return generateCm4Script(
+                p_serial,
+                p_startTime,
+                self.serverIp,
+                str(self.serverPort),
+                self.imageName,
+                self.eeprom,
+                self.cmStatusLed,
+                self.cmStatusLedOnOnsuccess,
+            )
+        elif p_boardType == BoardType.CM5:
+            return generateCm5Script(
+                p_serial=p_serial,
+                p_startTime=p_startTime,
+                p_serverIp=self.serverIp,
+                p_serverPort=str(self.serverPort),
+                p_imageName=self.imageName,
+                p_eeprom=self.eeprom,
+                p_cmProgressLed=self.cmProgressLed,
+                p_cmProgressLedDrivenLow=self.cmProgressLedDrivenLow,
+                p_cmErrorLed=self.cmErrorLed,
+                p_cmErrorLedDrivenLow=self.cmErrorLedDrivenLow,
+            )
+        else:
+            raise ValueError("Invalid board type")
 
     def _getImageActiveNameAndCmStatusLed(
         self, p_targetFlashSize: Optional[int] = None
@@ -949,8 +892,8 @@ echo "Provisioning completed successfully!"
                 if targetFlashSize <= 8:
                     logging.info(f"8Gb selected, image: {imageName8Gb}")
                     self.imageName = imageName8Gb
-                elif targetFlashSize >= 8 and targetFlashSize <= 16:
-                    logging.info("16Gb selected, image: {imageName16Gb}")
+                elif targetFlashSize > 8 and targetFlashSize <= 16:
+                    logging.info(f"16Gb selected, image: {imageName16Gb}")
                     self.imageName = imageName16Gb
                 else:
                     logging.info(f"32Gb selected, image: {imageName32Gb}")
@@ -958,14 +901,19 @@ echo "Provisioning completed successfully!"
 
             status, project = self.projectManager.getProject(name)
             if status:
-                if int(project["cmStatusLed"]) != -1:
-                    self.cmStatusLed = str((project["cmStatusLed"]))
-                if project["cmStatusLedOnOnsuccess"]:
+                if int(project["cmStatusGpioLed"]) != -1:
+                    self.cmStatusLed = str((project["cmStatusGpioLed"]))
+                if project["cmStatusGpioLedOnSuccess"]:
                     self.cmStatusLedOnOnsuccess = "1"
                 else:
                     self.cmStatusLedOnOnsuccess = "0"
                 if project["eeprom"] != "":
                     self.eeprom = project["eeprom"]
+
+                self.cmProgressLed = project.get("progressLed", "ACT")
+                self.cmProgressLedDrivenLow = project.get("progressLedDrivenLow", False)
+                self.cmErrorLed = project.get("errorLed", "PWR")
+                self.cmErrorLedDrivenLow = project.get("errorLedDrivenLow", False)
 
     async def _publishToWebsockets(self, data: dict):
         """
